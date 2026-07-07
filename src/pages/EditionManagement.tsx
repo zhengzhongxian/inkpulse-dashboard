@@ -25,7 +25,10 @@ interface Edition {
   coverType: string;
   pageCount: number | null;
   publicationYear: number | null;
-  dimensions: string | null;
+  weightGram: number | null;
+  widthCm: number | null;
+  heightCm: number | null;
+  lengthCm: number | null;
   language: string | null;
   publisherName: string | null;
 }
@@ -55,7 +58,10 @@ export default function EditionManagement() {
   const [coverType, setCoverType] = useState('SOFT_COVER');
   const [pageCount, setPageCount] = useState('');
   const [publicationYear, setPublicationYear] = useState('');
-  const [dimensions, setDimensions] = useState('');
+  const [weightGram, setWeightGram] = useState('');
+  const [widthCm, setWidthCm] = useState('');
+  const [heightCm, setHeightCm] = useState('');
+  const [lengthCm, setLengthCm] = useState('');
   const [language, setLanguage] = useState('Tiếng Việt');
   const [publisherId, setPublisherId] = useState('');
   
@@ -114,7 +120,10 @@ export default function EditionManagement() {
     setCoverType('SOFT_COVER');
     setPageCount('');
     setPublicationYear(new Date().getFullYear().toString());
-    setDimensions('');
+    setWeightGram('');
+    setWidthCm('');
+    setHeightCm('');
+    setLengthCm('');
     setLanguage('Tiếng Việt');
     setPublisherId(publishers.length > 0 ? publishers[0].id : '');
     setCoverFile(null);
@@ -132,7 +141,10 @@ export default function EditionManagement() {
     setCoverType(edition.coverType || 'SOFT_COVER');
     setPageCount(edition.pageCount?.toString() || '');
     setPublicationYear(edition.publicationYear?.toString() || '');
-    setDimensions(edition.dimensions || '');
+    setWeightGram(edition.weightGram?.toString() || '');
+    setWidthCm(edition.widthCm?.toString() || '');
+    setHeightCm(edition.heightCm?.toString() || '');
+    setLengthCm(edition.lengthCm?.toString() || '');
     setLanguage(edition.language || 'Tiếng Việt');
     
     // Find publisher id matching the publisherName
@@ -200,7 +212,10 @@ export default function EditionManagement() {
       formData.append('coverType', coverType);
       if (pageCount) formData.append('pageCount', pageCount);
       if (publicationYear) formData.append('publicationYear', publicationYear);
-      if (dimensions) formData.append('dimensions', dimensions.trim());
+      if (weightGram) formData.append('weightGram', weightGram);
+      if (widthCm) formData.append('widthCm', widthCm);
+      if (heightCm) formData.append('heightCm', heightCm);
+      if (lengthCm) formData.append('lengthCm', lengthCm);
       if (language) formData.append('language', language.trim());
       if (publisherId) formData.append('publisherId', publisherId);
 
@@ -635,13 +650,41 @@ export default function EditionManagement() {
 
             <div className="form-grid-2col">
               <div className="form-field-edition">
-                <label>Kích thước</label>
-                <input 
-                  type="text" 
-                  placeholder="Ví dụ: 14x20.5 cm"
-                  value={dimensions} 
-                  onChange={(e) => setDimensions(e.target.value)} 
-                />
+                <label>Thông số giao hàng (Cân nặng / Rộng × Dài × Cao)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                  <div>
+                    <input 
+                      type="number" 
+                      placeholder="Nặng (g)"
+                      value={weightGram} 
+                      onChange={(e) => setWeightGram(e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <input 
+                      type="number" 
+                      placeholder="Rộng (cm)"
+                      value={widthCm} 
+                      onChange={(e) => setWidthCm(e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <input 
+                      type="number" 
+                      placeholder="Dài (cm)"
+                      value={lengthCm} 
+                      onChange={(e) => setLengthCm(e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <input 
+                      type="number" 
+                      placeholder="Cao (cm)"
+                      value={heightCm} 
+                      onChange={(e) => setHeightCm(e.target.value)} 
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="form-field-edition">

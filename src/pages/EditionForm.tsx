@@ -57,7 +57,10 @@ export default function EditionForm() {
   const [coverType, setCoverType] = useState('SOFT_COVER');
   const [pageCount, setPageCount] = useState('');
   const [publicationYear, setPublicationYear] = useState('');
-  const [dimensions, setDimensions] = useState('');
+  const [weightGram, setWeightGram] = useState('');
+  const [widthCm, setWidthCm] = useState('');
+  const [heightCm, setHeightCm] = useState('');
+  const [lengthCm, setLengthCm] = useState('');
   const [language, setLanguage] = useState('Tiếng Việt');
   const [publisherId, setPublisherId] = useState('');
 
@@ -185,7 +188,10 @@ export default function EditionForm() {
               setCoverType(ed.coverType || 'SOFT_COVER');
               setPageCount(formatNumberWithDots(ed.pageCount || ''));
               setPublicationYear(ed.publicationYear?.toString() || '');
-              setDimensions(ed.dimensions || '');
+              setWeightGram(ed.weightGram?.toString() || '');
+              setWidthCm(ed.widthCm?.toString() || '');
+              setHeightCm(ed.heightCm?.toString() || '');
+              setLengthCm(ed.lengthCm?.toString() || '');
               setLanguage(ed.language || 'Tiếng Việt');
               setCoverPreviewUrl(ed.thumbnailUrl || null);
 
@@ -229,7 +235,10 @@ export default function EditionForm() {
                 coverType: ed.coverType || 'SOFT_COVER',
                 pageCount: formatNumberWithDots(ed.pageCount || ''),
                 publicationYear: ed.publicationYear?.toString() || '',
-                dimensions: ed.dimensions || '',
+                weightGram: ed.weightGram?.toString() || '',
+                widthCm: ed.widthCm?.toString() || '',
+                heightCm: ed.heightCm?.toString() || '',
+                lengthCm: ed.lengthCm?.toString() || '',
                 language: ed.language || 'Tiếng Việt',
                 publisherId: ed.publisherId || '',
                 badgeIds: badgeIds,
@@ -354,7 +363,10 @@ export default function EditionForm() {
     if (coverType !== init.coverType) return true;
     if (pageCount.trim() !== init.pageCount) return true;
     if (publicationYear.trim() !== init.publicationYear) return true;
-    if (dimensions.trim() !== init.dimensions) return true;
+    if (weightGram.trim() !== init.weightGram) return true;
+    if (widthCm.trim() !== init.widthCm) return true;
+    if (heightCm.trim() !== init.heightCm) return true;
+    if (lengthCm.trim() !== init.lengthCm) return true;
     if (language.trim() !== init.language) return true;
     if (publisherId !== init.publisherId) return true;
 
@@ -410,7 +422,10 @@ export default function EditionForm() {
       const rawPageCount = pageCount.replace(/\./g, '');
       if (rawPageCount) formData.append('pageCount', rawPageCount);
       if (publicationYear) formData.append('publicationYear', publicationYear);
-      if (dimensions) formData.append('dimensions', dimensions.trim());
+      if (weightGram) formData.append('weightGram', weightGram);
+      if (widthCm) formData.append('widthCm', widthCm);
+      if (heightCm) formData.append('heightCm', heightCm);
+      if (lengthCm) formData.append('lengthCm', lengthCm);
       if (language) formData.append('language', language.trim());
       if (publisherId) formData.append('publisherId', publisherId);
 
@@ -1242,13 +1257,41 @@ export default function EditionForm() {
 
         <div className="form-grid-custom">
           <div className="form-field-custom">
-            <label>Kích thước sách</label>
-            <input
-              type="text"
-              placeholder="Ví dụ: 14 x 20.5 cm"
-              value={dimensions}
-              onChange={(e) => setDimensions(e.target.value)}
-            />
+            <label>Thông số giao hàng (Cân nặng / Rộng × Dài × Cao)</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+              <div>
+                <input
+                  type="number"
+                  placeholder="Nặng (g)"
+                  value={weightGram}
+                  onChange={(e) => setWeightGram(e.target.value)}
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  placeholder="Rộng (cm)"
+                  value={widthCm}
+                  onChange={(e) => setWidthCm(e.target.value)}
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  placeholder="Dài (cm)"
+                  value={lengthCm}
+                  onChange={(e) => setLengthCm(e.target.value)}
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  placeholder="Cao (cm)"
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="form-field-custom">

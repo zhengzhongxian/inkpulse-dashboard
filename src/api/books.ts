@@ -27,7 +27,10 @@ export interface BookEditionResponse {
   coverType: string;
   pageCount: number | null;
   publicationYear: number | null;
-  dimensions: string | null;
+  weightGram: number | null;
+  widthCm: number | null;
+  heightCm: number | null;
+  lengthCm: number | null;
   language: string | null;
   publisherName: string | null;
   badges?: EditionBadgeDto[];
