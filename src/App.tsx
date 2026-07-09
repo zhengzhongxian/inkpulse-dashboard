@@ -71,6 +71,7 @@ function App() {
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/orders/:id" element={<Orders />} />
             <Route path="/products" element={<Products />} />
             <Route path="/products/add" element={<ProductForm />} />
             <Route path="/products/edit/:id" element={<ProductForm />} />

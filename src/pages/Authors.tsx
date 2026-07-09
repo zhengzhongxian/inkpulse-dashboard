@@ -218,7 +218,6 @@ export const Authors: React.FC = () => {
           background: linear-gradient(135deg, #da447d, #b83469);
           color: #fff;
           font-weight: 700;
-          box-shadow: 0 2px 8px rgba(218, 68, 125, 0.4);
         }
         .page-btn.nav-arrow {
           color: var(--text-muted);

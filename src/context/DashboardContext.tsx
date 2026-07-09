@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { internalLoginApi, logOutClient, logoutApi } from '../api/auth';
+import { internalLoginApi, logOutClient, logoutApi, setAccessToken, refreshSession } from '../api/auth';
 import type {
   BookProduct,
   Order,
@@ -70,31 +70,37 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [reviews] = useState<Review[]>(initialReviews);
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   
-  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string } | null>(() => {
-    const token = localStorage.getItem('inkpulse_access_token');
-    if (token) {
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => {
+    const initSession = async () => {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return {
-          name: payload.username === 'admin' ? 'Nguyễn Văn Admin' : 'Lê Thị Thu',
-          email: payload.username + '@inkpulse.com',
-          role: payload.roles && payload.roles.includes('ADMIN') ? 'Admin' : 'Staff'
-        };
+        const token = await refreshSession();
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          setCurrentUser({
+            name: payload.username === 'admin' ? 'Nguyễn Văn Admin' : 'Lê Thị Thu',
+            email: payload.username + '@inkpulse.com',
+            role: payload.roles && (payload.roles.includes('ADMIN') || payload.roles.includes('Admin')) ? 'Admin' : 'Staff'
+          });
+        }
       } catch (e) {
-        return null;
+        console.error('Silent refresh failed on init:', e);
+      } finally {
+        setInitializing(false);
       }
-    }
-    return null;
-  });
+    };
+    initSession();
+  }, []);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await internalLoginApi({ login: username, password });
       const data = response.data;
       if (data && data.success && data.data) {
-        const { accessToken, refreshToken } = data.data;
-        localStorage.setItem('inkpulse_access_token', accessToken);
-        localStorage.setItem('inkpulse_refresh_token', refreshToken);
+        const { accessToken } = data.data;
+        setAccessToken(accessToken);
 
         const payload = JSON.parse(atob(accessToken.split('.')[1]));
         setCurrentUser({
@@ -114,13 +120,10 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const logout = async () => {
-    const refreshToken = localStorage.getItem('inkpulse_refresh_token');
-    if (refreshToken) {
-      try {
-        await logoutApi(refreshToken);
-      } catch (e) {
-        console.error('Failed to logout from backend', e);
-      }
+    try {
+      await logoutApi();
+    } catch (e) {
+      console.error('Failed to logout from backend', e);
     }
     logOutClient();
   };
@@ -174,6 +177,26 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const updatePostStatus = (id: string, status: Post['status']) => {
     setPosts(posts.map(p => p.id === id ? { ...p, status } : p));
   };
+
+  if (initializing) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#0a0a0a', position: 'relative' }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src="/favicon.svg" alt="Loading..." style={{ width: '96px', height: '96px', animation: 'pulse-fav 1.5s infinite ease-in-out' }} />
+          <style>{`
+            @keyframes pulse-fav {
+              0% { transform: scale(0.85); opacity: 0.6; }
+              50% { transform: scale(1.05); opacity: 1; }
+              100% { transform: scale(0.85); opacity: 0.6; }
+            }
+          `}</style>
+        </div>
+        <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', opacity: 0.8, height: '48px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="InkPulse Logo" style={{ height: '100px', maxWidth: '220px', objectFit: 'contain', marginTop: '-26px', marginBottom: '-30px' }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardContext.Provider value={{

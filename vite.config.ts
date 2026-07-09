@@ -9,6 +9,8 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] })
   ],
   server: {
-    port: 5174
+    port: 5174,
+    host: true,
+    allowedHosts: true
   }
 })
