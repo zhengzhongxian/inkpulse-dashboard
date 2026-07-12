@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { TbArrowLeft, TbDeviceFloppy, TbTrash, TbBookUpload, TbLoader2, TbChevronDown, TbCheck, TbChevronLeft, TbChevronRight } from 'react-icons/tb';
+import { TbArrowLeft, TbDeviceFloppy, TbTrash, TbBookUpload, TbLoader2, TbChevronDown, TbCheck, TbChevronLeft, TbChevronRight, TbBox } from 'react-icons/tb';
 import {
   getInternalBookDetailApi,
   getPagedPublishersApi,
@@ -8,7 +9,9 @@ import {
   createBookEditionApi,
   updateBookEditionApi,
   deleteBookEditionApi,
-  getBadgesApi
+  getBadgesApi,
+  importStockApi,
+  adjustStockApi
 } from '../api/books';
 import { toast } from '../utils/toast';
 
@@ -47,6 +50,13 @@ export default function EditionForm() {
   const [loadingEdition, setLoadingEdition] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [isDeletingModalOpen, setIsDeletingModalOpen] = useState(false);
+
+  // Stock modal states
+  const [stockModalOpen, setStockModalOpen] = useState(false);
+  const [stockActionType, setStockActionType] = useState<'IMPORT' | 'EXPORT' | null>(null);
+  const [stockQtyInput, setStockQtyInput] = useState<number>(0);
+  const [stockNoteInput, setStockNoteInput] = useState('');
+  const [isStockSubmitting, setIsStockSubmitting] = useState(false);
 
   // Form states
   const [isbn, setIsbn] = useState('');
@@ -273,6 +283,82 @@ export default function EditionForm() {
     return () => clearTimeout(handler);
   }, [publisherSearchTerm]);
 
+  const handleOpenStockModal = (type: 'IMPORT' | 'EXPORT') => {
+    setStockActionType(type);
+    setStockQtyInput(type === 'IMPORT' ? 10 : 5);
+    setStockNoteInput('');
+    setStockModalOpen(true);
+  };
+
+  const handleStockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editionId || !stockActionType) return;
+    try {
+      setIsStockSubmitting(true);
+      const currentStockVal = Number(stockQuantity.replace(/\./g, '')) || 0;
+
+      if (stockActionType === 'IMPORT') {
+        if (stockQtyInput <= 0) {
+          toast.error('Lỗi nhập dữ liệu', 'Số lượng nhập kho phải lớn hơn 0.');
+          setIsStockSubmitting(false);
+          return;
+        }
+        await importStockApi({
+          editionId,
+          quantity: stockQtyInput,
+          note: stockNoteInput.trim() || 'Nhập kho thủ công tại trang sửa phiên bản'
+        });
+        toast.success('Nhập kho thành công', `Đã nhập thêm +${stockQtyInput} cuốn vào kho.`);
+      } else {
+        if (stockQtyInput <= 0) {
+          toast.error('Lỗi nhập dữ liệu', 'Số lượng xuất kho phải lớn hơn 0.');
+          setIsStockSubmitting(false);
+          return;
+        }
+        if (stockQtyInput > currentStockVal) {
+          toast.error('Lỗi xuất kho', `Không thể xuất ${stockQtyInput} cuốn vì trong kho chỉ còn ${currentStockVal} cuốn.`);
+          setIsStockSubmitting(false);
+          return;
+        }
+        const newQty = currentStockVal - stockQtyInput;
+        await adjustStockApi({
+          editionId,
+          newQuantity: newQty,
+          note: stockNoteInput.trim() || 'Xuất kho thủ công tại trang sửa phiên bản'
+        });
+        toast.success('Xuất kho thành công', `Đã xuất -${stockQtyInput} cuốn khỏi kho. Tồn kho còn lại: ${newQty} cuốn.`);
+      }
+
+      await fetchCurrentStock();
+      setStockModalOpen(false);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        stockActionType === 'IMPORT' ? 'Nhập kho thất bại' : 'Xuất kho thất bại',
+        error.response?.data?.message || 'Có lỗi xảy ra trong quá trình xử lý.'
+      );
+    } finally {
+      setIsStockSubmitting(false);
+    }
+  };
+
+  const fetchCurrentStock = async () => {
+    if (!editionId) return;
+    try {
+      const res = await getInternalBookEditionDetailApi(editionId);
+      if (res.data && res.data.success) {
+        const ed = res.data.data;
+        const formattedStock = formatNumberWithDots(ed.stockQuantity || '0');
+        setStockQuantity(formattedStock);
+        if (initialValuesRef.current) {
+          initialValuesRef.current.stockQuantity = formattedStock;
+        }
+      }
+    } catch (err) {
+      console.error('Lỗi cập nhật tồn kho:', err);
+    }
+  };
+
   const handlePublisherScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     if (target.scrollHeight - target.scrollTop <= target.clientHeight + 10) {
@@ -416,7 +502,9 @@ export default function EditionForm() {
       formData.append('isbn', isbn.trim());
       formData.append('price', rawPrice);
       if (rawOldPrice) formData.append('oldPrice', rawOldPrice);
-      formData.append('stockQuantity', rawStock);
+      if (!isEdit) {
+        formData.append('stockQuantity', rawStock);
+      }
       formData.append('editionNumber', editionNumber);
       formData.append('coverType', coverType);
       const rawPageCount = pageCount.replace(/\./g, '');
@@ -655,6 +743,27 @@ export default function EditionForm() {
         }
         .btn-add-custom:hover {
           background-color: var(--primary-hover);
+        }
+        .btn-stock-action {
+          background-color: #1f1f23;
+          color: #e2e4e9;
+          border: 1px solid #3f3f46;
+          border-radius: 8px;
+          padding: 0 16px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: var(--transition);
+          height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        }
+        .btn-stock-action:hover {
+          background-color: #27272c;
+          border-color: #52525b;
+          color: #ffffff;
         }
         .btn-back-custom {
           display: inline-flex;
@@ -952,6 +1061,63 @@ export default function EditionForm() {
           border-color: #ef4444;
           box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
         }
+
+        /* Custom styles for Edition Detail Modal / Stock Modal */
+        .modal-overlay-custom {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.7);
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .modal-card-custom {
+          background-color: var(--bg-card);
+          border: 1px solid var(--border);
+          width: 100%;
+          max-width: 680px;
+          border-radius: 0px !important; /* Không bo góc theo yêu cầu */
+          box-shadow: var(--shadow-lg);
+          animation: fadeInCustom 0.25s ease;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .modal-header-custom {
+          padding: 16px 24px;
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .modal-header-custom h2 {
+          font-size: 16px;
+          font-weight: 700;
+          color: #ffffff;
+          margin: 0;
+        }
+        .modal-close-btn-custom {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          font-size: 28px;
+          line-height: 1;
+          cursor: pointer;
+          outline: none;
+        }
+        .modal-close-btn-custom:hover {
+          color: #ffffff;
+        }
+
+        @keyframes fadeInCustom {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
       `}</style>
 
       {/* Header bar */}
@@ -1101,12 +1267,41 @@ export default function EditionForm() {
         <div className="form-grid-custom">
           <div className="form-field-custom">
             <label>Số lượng trong kho</label>
-            <input
-              type="text"
-              value={stockQuantity}
-              onChange={(e) => setStockQuantity(formatNumberWithDots(e.target.value))}
-              style={{ color: 'var(--accent-blue)', fontWeight: 'bold' }}
-            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={stockQuantity}
+                onChange={(e) => setStockQuantity(formatNumberWithDots(e.target.value))}
+                style={{ color: 'var(--accent-blue)', fontWeight: 'bold', flex: 1, backgroundColor: isEdit ? '#1f1f23' : undefined, cursor: isEdit ? 'not-allowed' : undefined }}
+                disabled={isEdit}
+              />
+              {isEdit && (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className="btn-stock-action"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleOpenStockModal('IMPORT');
+                    }}
+                  >
+                    Nhập kho
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-stock-action"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleOpenStockModal('EXPORT');
+                    }}
+                  >
+                    Xuất kho
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="form-field-custom">
@@ -1521,6 +1716,100 @@ export default function EditionForm() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Stock Management Modal */}
+      {stockModalOpen && createPortal(
+        <div className="modal-overlay-custom" style={{ zIndex: 10000 }}>
+          <div className="modal-card-custom" style={{ maxWidth: '480px', borderRadius: '0px !important' }}>
+            <div className="modal-header-custom" style={{ borderBottom: 'none', paddingBottom: '0px' }}>
+              <h2 style={{ color: 'var(--primary)', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                {stockActionType === 'IMPORT' ? 'Nhập thêm kho' : 'Xuất kho thực tế'}
+              </h2>
+              <button type="button" className="modal-close-btn-custom" onClick={() => setStockModalOpen(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleStockSubmit}>
+              <div style={{ padding: '20px 24px', color: 'var(--text-main)', fontSize: '14px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '600', color: 'var(--text-light)', marginBottom: '6px' }}>
+                    {stockActionType === 'IMPORT' ? 'Số lượng sách nhập thêm' : 'Số lượng sách xuất đi'}
+                  </label>
+                  <input
+                    type="number"
+                    value={stockQtyInput}
+                    onChange={(e) => setStockQtyInput(Math.max(1, parseInt(e.target.value) || 0))}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      backgroundColor: '#0d0d0f',
+                      border: '1px solid #2d2d30',
+                      borderRadius: '4px',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                    min={1}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '600', color: 'var(--text-light)', marginBottom: '6px' }}>
+                    Ghi chú / Lý do thay đổi
+                  </label>
+                  <textarea
+                    value={stockNoteInput}
+                    onChange={(e) => setStockNoteInput(e.target.value)}
+                    placeholder={stockActionType === 'IMPORT' ? 'Ví dụ: Nhập thêm hàng mới từ nhà in...' : 'Ví dụ: Xuất trả hàng nhà cung cấp, xuất hủy sách rách hỏng...'}
+                    style={{
+                      width: '100%',
+                      height: '80px',
+                      padding: '10px 12px',
+                      backgroundColor: '#0d0d0f',
+                      border: '1px solid #2d2d30',
+                      borderRadius: '4px',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      outline: 'none',
+                      resize: 'none'
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', padding: '16px 24px', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', marginTop: '8px' }}>
+                <button
+                  type="submit"
+                  className="btn-add-custom"
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    borderColor: 'var(--primary)',
+                    color: 'white',
+                    height: '34px',
+                    padding: '0 16px',
+                    fontSize: '13px',
+                    margin: 0,
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                  disabled={isStockSubmitting}
+                >
+                  {isStockSubmitting ? (
+                    <>
+                      <TbLoader2 className="animate-spin-custom" style={{ fontSize: '14px' }} />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    'Xác nhận'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

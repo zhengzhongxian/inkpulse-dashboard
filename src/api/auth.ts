@@ -6,6 +6,7 @@ export const authClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'X-Client-Type': 'INTERNAL',
   },
   withCredentials: true, // Send HttpOnly Cookie in cross-origin requests
 });
@@ -54,7 +55,10 @@ export const refreshSession = async (): Promise<string | null> => {
 
   activeRefreshPromise = (async () => {
     try {
-      const res = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+      const res = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { 
+        withCredentials: true,
+        headers: { 'X-Client-Type': 'INTERNAL' }
+      });
       if (res.data && res.data.success && res.data.data) {
         const token = res.data.data.accessToken;
         setAccessToken(token);

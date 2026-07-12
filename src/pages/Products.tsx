@@ -9,6 +9,7 @@ import type {
   CategoryResponse
 } from '../api/books';
 import { TbSearch, TbChevronDown, TbBookmarkPlus, TbChevronLeft, TbChevronRight, TbArrowNarrowUp, TbArrowNarrowDown } from 'react-icons/tb';
+import { CustomDatePicker } from '../components/CustomDatePicker';
 
 const PAGE_SIZE = 10;
 
@@ -25,6 +26,10 @@ export const Products: React.FC = () => {
   // Price range filters
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+
+  // Date range filters
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Sorting
   const [sortBy, setSortBy] = useState('');
@@ -55,7 +60,9 @@ export const Products: React.FC = () => {
     maxP?: string,
     sBy?: string,
     sDir?: string | null,
-    actFilter?: string
+    actFilter?: string,
+    startD?: string,
+    endD?: string
   ) => {
     setLoading(true);
     try {
@@ -68,7 +75,9 @@ export const Products: React.FC = () => {
         maxPrice: maxP ? Number(maxP.replace(/\./g, '')) : undefined,
         sortBy: sBy || undefined,
         sortDirection: sDir || undefined,
-        active: actFilter === 'ACTIVE' ? true : actFilter === 'INACTIVE' ? false : undefined
+        active: actFilter === 'ACTIVE' ? true : actFilter === 'INACTIVE' ? false : undefined,
+        startDate: startD || undefined,
+        endDate: endD || undefined
       });
       if (booksRes.data && booksRes.data.success) {
         const paged = booksRes.data.data;
@@ -90,14 +99,14 @@ export const Products: React.FC = () => {
   // Reset về page 1 khi filter thay đổi
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, categoryFilter, minPrice, maxPrice, sortBy, sortDirection, activeFilter]);
+  }, [searchTerm, categoryFilter, minPrice, maxPrice, sortBy, sortDirection, activeFilter, startDate, endDate]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      loadBooks(currentPage, searchTerm, categoryFilter, minPrice, maxPrice, sortBy, sortDirection, activeFilter);
+      loadBooks(currentPage, searchTerm, categoryFilter, minPrice, maxPrice, sortBy, sortDirection, activeFilter, startDate, endDate);
     }, 300);
     return () => clearTimeout(handler);
-  }, [searchTerm, categoryFilter, currentPage, minPrice, maxPrice, sortBy, sortDirection, activeFilter]);
+  }, [currentPage, searchTerm, categoryFilter, minPrice, maxPrice, sortBy, sortDirection, activeFilter, startDate, endDate]);
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -263,6 +272,9 @@ export const Products: React.FC = () => {
           cursor: pointer;
           height: 44px;
           transition: var(--transition);
+        }
+        .custom-dropdown-header.active {
+          border-color: #4a4a4f;
         }
         .custom-dropdown-header .arrow-icon {
           color: #da447d;
@@ -505,6 +517,21 @@ export const Products: React.FC = () => {
           />
         </div>
 
+        {/* Bộ lọc khoảng ngày tạo */}
+        <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CustomDatePicker
+            value={startDate}
+            onChange={setStartDate}
+            placeholder="Từ ngày..."
+          />
+          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
+          <CustomDatePicker
+            value={endDate}
+            onChange={setEndDate}
+            placeholder="đến..."
+          />
+        </div>
+
         <div className="custom-dropdown-container">
           <div
             className={`custom-dropdown-header ${isSelectOpen ? 'active' : ''}`}
@@ -613,8 +640,10 @@ export const Products: React.FC = () => {
                   <tr key={p.id}>
                     <td><span className="book-title-cell">{p.title}</span></td>
                     <td style={{ fontWeight: '700', color: '#F687B3' }}>{p.minPrice ? formatMoney(Number(p.minPrice)) : 'Liên hệ'}</td>
-                    <td style={{ fontWeight: '600', color: 'var(--accent-blue)' }}>{totalStock} cuốn</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+                    <td style={{ fontWeight: '600', color: totalStock > 0 ? '#63B3ED' : '#E53E3E' }}>
+                      {totalStock > 0 ? `${totalStock} cuốn` : 'Hết hàng'}
+                    </td>
+                    <td style={{ color: 'var(--text-light)', fontSize: '13px' }}>
                       {p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                     </td>
                     <td>
@@ -627,8 +656,8 @@ export const Products: React.FC = () => {
               })
             ) : (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-light)', padding: '30px' }}>
-                  Không tìm thấy cuốn sách nào trong kho.
+                <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-light)' }}>
+                  {loading ? 'Đang tải dữ liệu...' : 'Không tìm thấy sách nào.'}
                 </td>
               </tr>
             )}
@@ -637,7 +666,7 @@ export const Products: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {totalPages >= 1 && (
+      {totalCount > 0 && (
         <div className="pagination-bar">
           <span className="pagination-info">
             Hiển thị{' '}

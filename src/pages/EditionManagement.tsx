@@ -6,7 +6,10 @@ import {
   getPublishersApi, 
   createBookEditionApi, 
   updateBookEditionApi, 
-  deleteBookEditionApi 
+  deleteBookEditionApi,
+  importStockApi,
+  adjustStockApi,
+  getStockHistoryApi
 } from '../api/books';
 import { toast } from '../utils/toast';
 
@@ -72,6 +75,13 @@ export default function EditionManagement() {
 
   // Modal confirm delete state
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Stock management modal states
+  const [stockModalEdition, setStockModalEdition] = useState<Edition | null>(null);
+  const [stockModalType, setStockModalType] = useState<'IMPORT' | 'ADJUST' | null>(null);
+  const [stockInputQty, setStockInputQty] = useState<number>(0);
+  const [stockInputNote, setStockInputNote] = useState<string>('');
+  const [isStockSubmitting, setIsStockSubmitting] = useState<boolean>(false);
 
   const loadData = async () => {
     if (!bookId) return;
@@ -180,6 +190,59 @@ export default function EditionManagement() {
       toast.error('Lỗi khi xóa', error.response?.data?.message || 'Không thể xóa phiên bản sách.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenStockModal = (edition: Edition, type: 'IMPORT' | 'ADJUST') => {
+    setStockModalEdition(edition);
+    setStockModalType(type);
+    setStockInputQty(type === 'IMPORT' ? 10 : edition.stockQuantity);
+    setStockInputNote('');
+  };
+
+  const handleStockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stockModalEdition || !stockModalType) return;
+    
+    try {
+      setIsStockSubmitting(true);
+      if (stockModalType === 'IMPORT') {
+        if (stockInputQty <= 0) {
+          toast.error('Lỗi nhập kho', 'Số lượng nhập phải lớn hơn 0.');
+          setIsStockSubmitting(false);
+          return;
+        }
+        await importStockApi({
+          editionId: stockModalEdition.id,
+          quantity: stockInputQty,
+          note: stockInputNote || 'Nhập kho thủ công'
+        });
+        toast.success('Nhập kho thành công', `Đã nhập +${stockInputQty} cuốn vào kho.`);
+      } else {
+        if (stockInputQty < 0) {
+          toast.error('Lỗi điều chỉnh', 'Số lượng kho mới không được âm.');
+          setIsStockSubmitting(false);
+          return;
+        }
+        await adjustStockApi({
+          editionId: stockModalEdition.id,
+          newQuantity: stockInputQty,
+          note: stockInputNote || 'Điều chỉnh kho thủ công'
+        });
+        toast.success('Điều chỉnh thành công', `Đã cập nhật tồn kho về ${stockInputQty} cuốn.`);
+      }
+
+      setStockModalEdition(null);
+      setStockModalType(null);
+      await loadData();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        stockModalType === 'IMPORT' ? 'Nhập kho thất bại' : 'Điều chỉnh thất bại',
+        error.response?.data?.message || 'Có lỗi xảy ra khi thực hiện cập nhật kho.'
+      );
+    } finally {
+      setIsStockSubmitting(false);
     }
   };
 
@@ -462,7 +525,7 @@ export default function EditionManagement() {
                     <th style={{ textAlign: 'center' }}>Đã bán</th>
                     <th>Loại bìa</th>
                     <th>PDF</th>
-                    <th style={{ textAlign: 'center', width: '90px' }}>Hành động</th>
+                    <th style={{ textAlign: 'center', width: '210px' }}>Hành động</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -512,11 +575,48 @@ export default function EditionManagement() {
                           <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Không có</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <button 
+                          className="btn-small-action import" 
+                          style={{ 
+                            marginRight: '6px', 
+                            padding: '4px 8px', 
+                            fontSize: '11px', 
+                            borderRadius: '2px', 
+                            backgroundColor: '#319795', 
+                            color: 'white', 
+                            border: 'none', 
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                          }}
+                          onClick={() => handleOpenStockModal(edition, 'IMPORT')}
+                          title="Nhập thêm sách vào kho"
+                        >
+                          Nhập
+                        </button>
+                        <button 
+                          className="btn-small-action adjust" 
+                          style={{ 
+                            marginRight: '6px', 
+                            padding: '4px 8px', 
+                            fontSize: '11px', 
+                            borderRadius: '2px', 
+                            backgroundColor: '#d69e2e', 
+                            color: 'white', 
+                            border: 'none', 
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                          }}
+                          onClick={() => handleOpenStockModal(edition, 'ADJUST')}
+                          title="Điều chỉnh hoặc xuất kho"
+                        >
+                          Chỉnh
+                        </button>
                         <button 
                           className="btn-icon-custom edit" 
                           title="Chỉnh sửa phiên bản này"
                           onClick={() => handleEditClick(edition)}
+                          style={{ padding: '4px' }}
                         >
                           <TbEdit />
                         </button>
@@ -524,6 +624,7 @@ export default function EditionManagement() {
                           className="btn-icon-custom delete" 
                           title="Xóa phiên bản này"
                           onClick={() => handleDeleteClick(edition.id)}
+                          style={{ padding: '4px' }}
                         >
                           <TbTrash />
                         </button>
@@ -592,7 +693,14 @@ export default function EditionManagement() {
                   value={stockQuantity} 
                   onChange={(e) => setStockQuantity(e.target.value)} 
                   min="0"
+                  disabled={editingEditionId !== null}
+                  style={editingEditionId !== null ? { backgroundColor: '#2d3748', cursor: 'not-allowed' } : {}}
                 />
+                {editingEditionId !== null && (
+                  <span style={{ fontSize: '11px', color: '#a0aec0', marginTop: '4px', display: 'block' }}>
+                    Sử dụng nút [Nhập kho] / [Chỉnh kho] trong danh sách để điều chỉnh tồn kho.
+                  </span>
+                )}
               </div>
 
               <div className="form-field-edition">
@@ -811,6 +919,119 @@ export default function EditionManagement() {
                 Đồng ý xóa
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Management Modal (Flat, Square, Dark Theme) */}
+      {stockModalEdition && stockModalType && (
+        <div className="modal-overlay-custom">
+          <div className="modal-card-custom" style={{ maxWidth: '480px', borderRadius: '0px !important' }}>
+            <div className="modal-header-custom">
+              <h2>
+                {stockModalType === 'IMPORT' 
+                  ? `Nhập kho: Phiên bản #${stockModalEdition.editionNumber}`
+                  : `Điều chỉnh kho: Phiên bản #${stockModalEdition.editionNumber}`
+                }
+              </h2>
+              <button 
+                className="modal-close-btn-custom" 
+                onClick={() => {
+                  setStockModalEdition(null);
+                  setStockModalType(null);
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            
+            <form onSubmit={handleStockSubmit}>
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+                
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  <p style={{ margin: '0 0 4px 0' }}><strong>ISBN:</strong> {stockModalEdition.isbn}</p>
+                  <p style={{ margin: '0' }}><strong>Tồn kho hiện tại:</strong> {stockModalEdition.stockQuantity} cuốn</p>
+                </div>
+
+                <div className="form-field-edition" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600' }}>
+                    {stockModalType === 'IMPORT' 
+                      ? 'Số lượng nhập thêm'
+                      : 'Số lượng kho mới (Tồn kho thực tế)'
+                    }
+                    <span className="required-star-edition">*</span>
+                  </label>
+                  <input 
+                    type="number" 
+                    value={stockInputQty}
+                    onChange={(e) => setStockInputQty(parseInt(e.target.value, 10) || 0)}
+                    min={stockModalType === 'IMPORT' ? '1' : '0'}
+                    required
+                    style={{ width: '100%', padding: '8px 12px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div className="form-field-edition" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600' }}>
+                    Ghi chú / Lý do điều chỉnh
+                    <span className="required-star-edition">*</span>
+                  </label>
+                  <textarea 
+                    value={stockInputNote}
+                    onChange={(e) => setStockInputNote(e.target.value)}
+                    required
+                    placeholder={stockModalType === 'IMPORT' ? 'Ví dụ: Nhập bổ sung từ nhà in Kim Đồng' : 'Ví dụ: Cân đối kiểm kê kho cuối tháng'}
+                    style={{ 
+                      width: '100%', 
+                      padding: '8px 12px', 
+                      minHeight: '80px', 
+                      backgroundColor: 'var(--bg-input)', 
+                      border: '1px solid var(--border)', 
+                      color: 'var(--text-main)',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', padding: '16px 24px', justifyContent: 'flex-end', borderTop: '1px solid var(--border)' }}>
+                <button 
+                  type="button"
+                  className="btn-cancel-custom" 
+                  onClick={() => {
+                    setStockModalEdition(null);
+                    setStockModalType(null);
+                  }}
+                  disabled={isStockSubmitting}
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  type="submit"
+                  className="btn-save-custom"
+                  style={{ 
+                    backgroundColor: stockModalType === 'IMPORT' ? '#319795' : '#d69e2e',
+                    color: 'white',
+                    padding: '8px 16px',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                  disabled={isStockSubmitting}
+                >
+                  {isStockSubmitting ? (
+                    <>
+                      <TbLoader className="animate-spin-custom" /> Đang cập nhật...
+                    </>
+                  ) : (
+                    stockModalType === 'IMPORT' ? 'Nhập kho' : 'Xác nhận'
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   getInternalOrders,
   getInternalOrderDetail,
   getOrderLogs,
   packOrder,
-  approveOrder
+  approveOrder,
+  printOrderLabel,
+  cancelOrder,
+  returnOrder,
+  updateOrderShipping
 } from '../api/orders';
 import type {
   OrderDetailDto,
@@ -20,12 +25,13 @@ import {
   TbCheck,
   TbTruck,
   TbPrinter,
-  TbHistory,
   TbArrowLeft,
   TbChevronDown,
-  TbChevronsDown
+  TbChevronsDown,
+  TbFileText
 } from 'react-icons/tb';
 import { toast } from '../utils/toast';
+import { CustomDatePicker } from '../components/CustomDatePicker';
 
 const PAGE_SIZE = 10;
 
@@ -37,15 +43,45 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [isSelectOpen, setIsSelectOpen] = useState(false);
 
+  // Advanced Filters
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('ALL');
+  const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false);
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  const loadOrders = async (page: number, keyword: string, status: string) => {
+  const loadOrders = async (
+    page: number,
+    keyword: string,
+    status: string,
+    startD?: string,
+    endD?: string,
+    payM?: string,
+    minA?: string,
+    maxA?: string
+  ) => {
     setLoading(true);
     try {
-      const res = await getInternalOrders(page, PAGE_SIZE, keyword, status);
+      const minVal = minA ? Number(minA.replace(/\./g, '')) : undefined;
+      const maxVal = maxA ? Number(maxA.replace(/\./g, '')) : undefined;
+
+      const res = await getInternalOrders(
+        page,
+        PAGE_SIZE,
+        keyword,
+        status,
+        startD || undefined,
+        endD || undefined,
+        payM || undefined,
+        minVal,
+        maxVal
+      );
       if (res.data && res.data.success && res.data.data) {
         const paged = res.data.data;
         setOrders(paged.items || []);
@@ -62,20 +98,30 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, startDate, endDate, paymentMethodFilter, minAmount, maxAmount]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      loadOrders(currentPage, searchTerm, statusFilter);
+      loadOrders(
+        currentPage,
+        searchTerm,
+        statusFilter,
+        startDate,
+        endDate,
+        paymentMethodFilter,
+        minAmount,
+        maxAmount
+      );
     }, 400);
     return () => clearTimeout(handler);
-  }, [searchTerm, statusFilter, currentPage]);
+  }, [currentPage, searchTerm, statusFilter, startDate, endDate, paymentMethodFilter, minAmount, maxAmount]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.custom-dropdown-container')) {
         setIsSelectOpen(false);
+        setIsPaymentDropdownOpen(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -126,8 +172,38 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
     }
   };
 
+  const getPaymentMethodText = (pm: string) => {
+    switch (pm) {
+      case 'ALL': return 'Tất cả hình thức';
+      case 'COD': return 'Thanh toán COD';
+      case 'PAYOS': return 'Cổng PayOS';
+      case 'COIN': return 'Ví Coin';
+      default: return pm;
+    }
+  };
+
   return (
     <div className="orders-view fade-in">
+      <style>{`
+        .price-input-custom {
+          height: 44px;
+          background-color: #1a1a1a;
+          border: 2px solid var(--border);
+          border-radius: 10px;
+          padding: 0 12px !important;
+          font-size: 13.5px;
+          color: #48BB78;
+          font-weight: 600;
+          outline: none;
+          transition: var(--transition);
+          box-sizing: border-box;
+        }
+        .price-input-custom:focus {
+          border-color: #4a4a4f !important;
+          box-shadow: none !important;
+        }
+      `}</style>
+
       <div className="view-header" style={{ marginBottom: '24px' }}>
         <div>
           <h1 className="view-title">Quản lý Đơn hàng</h1>
@@ -150,6 +226,73 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
           </button>
         </div>
 
+        {/* Bộ lọc khoảng ngày đặt hàng */}
+        <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CustomDatePicker
+            value={startDate}
+            onChange={setStartDate}
+            placeholder="Từ ngày..."
+          />
+          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
+          <CustomDatePicker
+            value={endDate}
+            onChange={setEndDate}
+            placeholder="đến..."
+          />
+        </div>
+
+        {/* Bộ lọc hình thức thanh toán */}
+        <div className="custom-dropdown-container" style={{ width: '180px' }}>
+          <div
+            className={`custom-dropdown-header ${isPaymentDropdownOpen ? 'active' : ''}`}
+            onClick={() => setIsPaymentDropdownOpen(!isPaymentDropdownOpen)}
+          >
+            <span>{getPaymentMethodText(paymentMethodFilter)}</span>
+            <TbChevronDown className={`arrow-icon ${isPaymentDropdownOpen ? 'open' : ''}`} />
+          </div>
+          {isPaymentDropdownOpen && (
+            <div className="custom-dropdown-menu">
+              {['ALL', 'COD', 'PAYOS', 'COIN'].map((pm) => (
+                <div
+                  key={pm}
+                  className={`custom-dropdown-item ${paymentMethodFilter === pm ? 'selected' : ''}`}
+                  onClick={() => { setPaymentMethodFilter(pm); setIsPaymentDropdownOpen(false); }}
+                >
+                  {getPaymentMethodText(pm)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bộ lọc khoảng tiền thanh toán */}
+        <div className="price-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="text"
+            className="price-input-custom"
+            placeholder="Số tiền từ..."
+            value={minAmount}
+            onChange={(e) => {
+              const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+              setMinAmount(formatted);
+            }}
+            style={{ width: '130px' }}
+          />
+          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
+          <input
+            type="text"
+            className="price-input-custom"
+            placeholder="đến..."
+            value={maxAmount}
+            onChange={(e) => {
+              const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+              setMaxAmount(formatted);
+            }}
+            style={{ width: '130px' }}
+          />
+        </div>
+
+        {/* Bộ lọc trạng thái */}
         <div className="custom-dropdown-container">
           <div
             className={`custom-dropdown-header ${isSelectOpen ? 'active' : ''}`}
@@ -252,7 +395,7 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
       </div>
 
       {/* Pagination Bar */}
-      {!loading && totalPages >= 1 && (
+      {!loading && totalCount > 0 && (
         <div className="pagination-bar">
           <div className="pagination-info">
             Đang xem trang <span className="page-highlight">{currentPage}</span> / {totalPages} (Tổng cộng <span className="count-highlight">{totalCount}</span> đơn hàng)
@@ -290,34 +433,50 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
 };
 
 // Sub-component: Order Detail View (full page detail view layout)
-const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof useNavigate> }> = ({ orderId, navigate }) => {
+const OrderDetailView: React.FC<{ orderId: string }> = ({ orderId }) => {
   const [orderDetail, setOrderDetail] = useState<OrderDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<OrderLogDto[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [processingAction, setProcessingAction] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [showUpdateShippingModal, setShowUpdateShippingModal] = useState(false);
+  const [shippingNote, setShippingNote] = useState('');
+  const [shippingRequiredNote, setShippingRequiredNote] = useState('CHOXEMHANGKHONGTHU');
+  const [shippingWeight, setShippingWeight] = useState(500);
+  const [shippingLength, setShippingLength] = useState(20);
+  const [shippingWidth, setShippingWidth] = useState(15);
+  const [shippingHeight, setShippingHeight] = useState(5);
+  const [isModalDropdownOpen, setIsModalDropdownOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const triggerConfirm = (title: string, message: React.ReactNode, onConfirm: () => void | Promise<void>) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm
+    });
+  };
 
   const fetchDetailsAndLogs = async () => {
     setLoading(true);
+    setLogs([]);
+    setShowLogs(false);
     try {
       const res = await getInternalOrderDetail(orderId);
       if (res.data && res.data.success && res.data.data) {
-        const detail = res.data.data;
-        setOrderDetail(detail);
-
-        // Fetch logs using orderCode
-        setLoadingLogs(true);
-        try {
-          const logRes = await getOrderLogs(detail.orderCode);
-          if (logRes.data && logRes.data.success) {
-            setLogs(logRes.data.data || []);
-          }
-        } catch (logErr) {
-          console.error('Error loading order logs:', logErr);
-        } finally {
-          setLoadingLogs(false);
-        }
+        setOrderDetail(res.data.data);
       }
     } catch (err) {
       console.error('Error loading order details:', err);
@@ -327,9 +486,41 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
     }
   };
 
+  const fetchLogs = async () => {
+    if (!orderDetail) return;
+    setLoadingLogs(true);
+    try {
+      const logRes = await getOrderLogs(orderDetail.orderCode);
+      if (logRes.data && logRes.data.success) {
+        setLogs(logRes.data.data || []);
+      }
+    } catch (logErr) {
+      console.error('Error loading order logs:', logErr);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
   useEffect(() => {
     fetchDetailsAndLogs();
   }, [orderId]);
+
+  useEffect(() => {
+    if (showLogs && orderDetail) {
+      fetchLogs();
+    }
+  }, [showLogs, orderDetail?.orderCode]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.custom-dropdown-container')) {
+        setIsModalDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -361,34 +552,149 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
   };
 
   const handleApprove = async (orderCode: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn duyệt đơn hàng ${orderCode} không?`)) return;
+    triggerConfirm(
+      'Xác nhận duyệt đơn hàng',
+      <span>
+        Bạn có chắc chắn muốn duyệt đơn hàng <strong style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{orderCode}</strong> không?
+      </span>,
+      async () => {
+        setProcessingAction(true);
+        try {
+          const res = await approveOrder(orderCode);
+          if (res.data && res.data.success) {
+            toast.success('Duyệt đơn thành công', `Đơn hàng ${orderCode} đã chuyển sang đóng gói.`);
+            fetchDetailsAndLogs();
+          }
+        } catch (error: any) {
+          console.error(error);
+          toast.error('Lỗi duyệt đơn', error.response?.data?.message || 'Không thể duyệt đơn hàng này.');
+        } finally {
+          setProcessingAction(false);
+        }
+      }
+    );
+  };
+
+  const handlePack = async (orderCode: string) => {
+    triggerConfirm(
+      'Xác nhận đóng gói và vận chuyển',
+      <span>
+        Bạn có chắc chắn xác nhận đóng gói và gửi vận đơn GHN cho đơn hàng <strong style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{orderCode}</strong> không?
+      </span>,
+      async () => {
+        setProcessingAction(true);
+        try {
+          const res = await packOrder(orderCode);
+          if (res.data && res.data.success) {
+            toast.success('Đóng gói thành công', `Mã vận đơn GHN đã được tạo thành công.`);
+            fetchDetailsAndLogs();
+          }
+        } catch (error: any) {
+          console.error(error);
+          toast.error('Lỗi đóng gói', error.response?.data?.message || 'Không thể tạo vận đơn GHN.');
+        } finally {
+          setProcessingAction(false);
+        }
+      }
+    );
+  };
+
+  const handlePrintGhnLabel = async (orderCode: string) => {
+    // Mở một tab trống trước để tránh bị popup blocker chặn do lệnh window.open chạy sau tác vụ bất đồng bộ
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Popup Blocker', 'Vui lòng cho phép mở popup để in vận đơn.');
+      return;
+    }
+    printWindow.document.write('<p style="font-family: sans-serif; text-align: center; margin-top: 50px;">Đang khởi tạo vận đơn từ GHN, vui lòng chờ giây lát...</p>');
+
     setProcessingAction(true);
     try {
-      const res = await approveOrder(orderCode);
-      if (res.data && res.data.success) {
-        toast.success('Duyệt đơn thành công', `Đơn hàng ${orderCode} đã chuyển sang đóng gói.`);
-        fetchDetailsAndLogs();
+      const res = await printOrderLabel(orderCode);
+      if (res.data && res.data.success && res.data.data?.printUrl) {
+        printWindow.location.href = res.data.data.printUrl;
+      } else {
+        printWindow.close();
+        toast.error('Lỗi in vận đơn', 'Không thể lấy thông tin in vận đơn từ GHN.');
       }
     } catch (error: any) {
       console.error(error);
-      toast.error('Lỗi duyệt đơn', error.response?.data?.message || 'Không thể duyệt đơn hàng này.');
+      printWindow.close();
+      toast.error('Lỗi in vận đơn', error.response?.data?.message || 'Không thể lấy thông tin in vận đơn từ GHN.');
     } finally {
       setProcessingAction(false);
     }
   };
 
-  const handlePack = async (orderCode: string) => {
-    if (!window.confirm(`Bạn có chắc chắn xác nhận đóng gói và gửi vận đơn GHN cho đơn hàng ${orderCode} không?`)) return;
+  const handleCancel = async (orderCode: string) => {
+    triggerConfirm(
+      'Xác nhận hủy đơn hàng',
+      <span>
+        Bạn có chắc chắn muốn hủy đơn hàng <strong style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{orderCode}</strong> không?
+      </span>,
+      async () => {
+        setProcessingAction(true);
+        try {
+          const res = await cancelOrder(orderCode);
+          if (res.data && res.data.success) {
+            toast.success('Hủy đơn thành công', `Đơn hàng ${orderCode} đã được hủy.`);
+            fetchDetailsAndLogs();
+          }
+        } catch (error: any) {
+          console.error(error);
+          toast.error('Lỗi hủy đơn', error.response?.data?.message || 'Không thể hủy đơn hàng này.');
+        } finally {
+          setProcessingAction(false);
+        }
+      }
+    );
+  };
+
+  const handleReturn = async (orderCode: string) => {
+    triggerConfirm(
+      'Xác nhận chuyển hoàn đơn hàng',
+      <span>
+        Bạn có chắc chắn muốn yêu cầu chuyển hoàn đơn hàng <strong style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{orderCode}</strong> không?
+      </span>,
+      async () => {
+        setProcessingAction(true);
+        try {
+          const res = await returnOrder(orderCode);
+          if (res.data && res.data.success) {
+            toast.success('Gửi yêu cầu thành công', `Yêu cầu chuyển hoàn đơn hàng ${orderCode} đã được ghi nhận.`);
+            fetchDetailsAndLogs();
+          }
+        } catch (error: any) {
+          console.error(error);
+          toast.error('Lỗi chuyển hoàn', error.response?.data?.message || 'Không thể gửi yêu cầu chuyển hoàn.');
+        } finally {
+          setProcessingAction(false);
+        }
+      }
+    );
+  };
+
+  const handleUpdateShipping = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderDetail) return;
     setProcessingAction(true);
     try {
-      const res = await packOrder(orderCode);
+      const res = await updateOrderShipping(orderDetail.orderCode, {
+        note: shippingNote || undefined,
+        requiredNote: shippingRequiredNote || undefined,
+        weight: shippingWeight || undefined,
+        length: shippingLength || undefined,
+        width: shippingWidth || undefined,
+        height: shippingHeight || undefined,
+      });
       if (res.data && res.data.success) {
-        toast.success('Đóng gói thành công', `Mã vận đơn GHN đã được tạo thành công.`);
+        toast.success('Cập nhật thành công', 'Thông tin bưu kiện trên hệ thống GHN đã được cập nhật.');
+        setShowUpdateShippingModal(false);
         fetchDetailsAndLogs();
       }
     } catch (error: any) {
       console.error(error);
-      toast.error('Lỗi đóng gói', error.response?.data?.message || 'Không thể tạo vận đơn GHN.');
+      toast.error('Lỗi cập nhật', error.response?.data?.message || 'Không thể cập nhật thông tin bưu kiện.');
     } finally {
       setProcessingAction(false);
     }
@@ -402,14 +708,32 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
       return;
     }
 
-    const itemsRows = orderDetail.items.map(item => `
-      <tr>
-        <td style="border: 1px solid #ddd; padding: 10px;">${item.bookTitle}</td>
-        <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${item.quantity}</td>
-        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.priceDisplay}</td>
-        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.subtotalDisplay}</td>
-      </tr>
-    `).join('');
+    const itemsRows = orderDetail.items.map(item => {
+      const coverTypeMap: Record<string, string> = {
+        'HARD_COVER': 'Bìa cứng',
+        'SOFT_COVER': 'Bìa mềm',
+        'SPECIAL': 'Đặc biệt'
+      };
+      const coverTypeText = item.coverType ? (coverTypeMap[item.coverType] || item.coverType) : '';
+      const editionText = [
+        item.editionNumber ? `Phiên bản #${item.editionNumber}` : '',
+        coverTypeText ? `(${coverTypeText})` : '',
+        item.isbn ? `[ISBN: ${item.isbn}]` : ''
+      ].filter(Boolean).join(' ');
+
+      return `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 10px;">
+            <div style="font-weight: bold;">${item.bookTitle}</div>
+            ${editionText ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${editionText}</div>` : ''}
+            <div style="font-size: 12px; color: #666;">Tác giả: ${item.authorName || ''}</div>
+          </td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${item.quantity}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.priceDisplay}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.subtotalDisplay}</td>
+        </tr>
+      `;
+    }).join('');
 
     printWindow.document.write(`
       <html>
@@ -512,7 +836,7 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
               </span>
             </div>
 
-            <div className="action-buttons-wrap">
+            <div className="action-buttons-wrap" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {orderDetail.orderStatus === 'PENDING' && (
                 <button 
                   className="btn-action-primary" 
@@ -535,13 +859,80 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
                 </button>
               )}
 
+              {orderDetail.orderStatus === 'PROCESSING' && orderDetail.ghnOrderCode && (
+                <button 
+                  className="btn-action-primary" 
+                  disabled={processingAction}
+                  onClick={() => {
+                    setShippingNote('');
+                    setShippingRequiredNote('CHOXEMHANGKHONGTHU');
+                    setShippingWeight(500);
+                    setShippingLength(20);
+                    setShippingWidth(15);
+                    setShippingHeight(5);
+                    setShowUpdateShippingModal(true);
+                  }}
+                  style={{
+                    backgroundColor: '#4fd1c5',
+                    borderColor: '#4fd1c5',
+                    color: '#0f0f11'
+                  }}
+                >
+                  <TbTruck />
+                  Cập nhật bưu kiện
+                </button>
+              )}
+
+              {orderDetail.ghnOrderCode && (
+                <button 
+                  className="btn-action-primary" 
+                  disabled={processingAction}
+                  onClick={() => handlePrintGhnLabel(orderDetail.orderCode)}
+                >
+                  {processingAction ? <TbLoader className="spin" /> : <TbPrinter />}
+                  In vận đơn
+                </button>
+              )}
+
               {orderDetail && (
                 <button 
                   className="btn-action-primary" 
                   onClick={handlePrintPickingList}
                 >
-                  <TbPrinter />
+                  <TbFileText />
                   In Phiếu nhặt hàng
+                </button>
+              )}
+
+              {(orderDetail.orderStatus === 'PENDING' || orderDetail.orderStatus === 'PROCESSING') && (
+                <button 
+                  className="btn-action-secondary" 
+                  disabled={processingAction}
+                  onClick={() => handleCancel(orderDetail.orderCode)}
+                  style={{
+                    backgroundColor: '#E53E3E',
+                    borderColor: '#E53E3E',
+                    color: '#ffffff'
+                  }}
+                >
+                  {processingAction ? <TbLoader className="spin" /> : <TbAlertCircle />}
+                  Hủy đơn hàng
+                </button>
+              )}
+
+              {orderDetail.orderStatus === 'SHIPPED' && (
+                <button 
+                  className="btn-action-secondary" 
+                  disabled={processingAction}
+                  onClick={() => handleReturn(orderDetail.orderCode)}
+                  style={{
+                    backgroundColor: '#E53E3E',
+                    borderColor: '#E53E3E',
+                    color: '#ffffff'
+                  }}
+                >
+                  {processingAction ? <TbLoader className="spin" /> : <TbAlertCircle />}
+                  Yêu cầu chuyển hoàn
                 </button>
               )}
             </div>
@@ -591,7 +982,18 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: '#4fd1c5', marginBottom: '4px' }}>{item.bookTitle}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>Tác giả: {item.authorName || 'Không có tác giả'}</div>
-                      <div style={{ fontSize: '12px', color: '#F687B3', marginTop: '2px', fontWeight: 600 }}>Đơn giá: {item.priceDisplay}</div>
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '4px', fontSize: '12px', color: 'var(--text-light)' }}>
+                        {item.editionNumber !== undefined && (
+                          <span>Phiên bản: #{item.editionNumber}</span>
+                        )}
+                        {item.coverType && (
+                          <span>Loại bìa: {item.coverType === 'HARD_COVER' ? 'Bìa cứng' : item.coverType === 'SOFT_COVER' ? 'Bìa mềm' : 'Đặc biệt'}</span>
+                        )}
+                        {item.isbn && (
+                          <span>ISBN: {item.isbn}</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#F687B3', marginTop: '4px', fontWeight: 600 }}>Đơn giá: {item.priceDisplay}</div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 700 }}>x{item.quantity}</div>
@@ -681,13 +1083,21 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
                         {/* Right: Content */}
                         <div style={{ paddingLeft: '12px', paddingBottom: '24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span style={{ color: getStatusColor(logItem.fromStatus), fontWeight: 700, fontSize: '13px' }}>
-                              {getStatusLabel(logItem.fromStatus)}
-                            </span>
-                            <span style={{ color: 'var(--text-light)', fontSize: '13px' }}>&rarr;</span>
-                            <span style={{ color: getStatusColor(logItem.toStatus), fontWeight: 700, fontSize: '13px' }}>
-                              {getStatusLabel(logItem.toStatus)}
-                            </span>
+                            {logItem.fromStatus === logItem.toStatus ? (
+                              <span style={{ color: getStatusColor(logItem.toStatus), fontWeight: 700, fontSize: '13px' }}>
+                                {getStatusLabel(logItem.toStatus)}
+                              </span>
+                            ) : (
+                              <>
+                                <span style={{ color: getStatusColor(logItem.fromStatus), fontWeight: 700, fontSize: '13px' }}>
+                                  {getStatusLabel(logItem.fromStatus)}
+                                </span>
+                                <span style={{ color: 'var(--text-light)', fontSize: '13px' }}>&rarr;</span>
+                                <span style={{ color: getStatusColor(logItem.toStatus), fontWeight: 700, fontSize: '13px' }}>
+                                  {getStatusLabel(logItem.toStatus)}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <p style={{ margin: 0, marginTop: '6px', fontSize: '14px', color: 'var(--text-main)', lineHeight: '1.5' }}>
                             {formatAdminNote(logItem.adminNote || logItem.userNote)}
@@ -703,6 +1113,313 @@ const OrderDetailView: React.FC<{ orderId: string; navigate: ReturnType<typeof u
             )}
           </div>
 
+          {showUpdateShippingModal && (
+            <div className="modal-overlay" style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(15, 15, 17, 0.85)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 999,
+              backdropFilter: 'blur(4px)'
+            }}>
+              <div className="card" style={{
+                width: '100%',
+                maxWidth: '560px',
+                padding: '24px',
+                borderRadius: '4px',
+                border: '1px solid #2a2a2e',
+                backgroundColor: '#16161a',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+              }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)', marginBottom: '16px' }}>
+                  Cập nhật thông tin bưu kiện (GHN)
+                </h3>
+                <form onSubmit={handleUpdateShipping} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, marginBottom: '6px' }}>
+                      Ghi chú <span style={{ color: '#E53E3E' }}>*</span>
+                    </label>
+                    <div className="custom-dropdown-container" style={{ width: '100%' }}>
+                      <div
+                        className={`custom-dropdown-header ${isModalDropdownOpen ? 'active' : ''}`}
+                        onClick={() => setIsModalDropdownOpen(!isModalDropdownOpen)}
+                        style={{
+                          borderRadius: '4px',
+                          border: '1px solid #2a2a2e',
+                          backgroundColor: '#0f0f11',
+                          height: '40px',
+                          padding: '0 12px',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          boxSizing: 'border-box'
+                        }}
+                      >
+                        <span>
+                          {shippingRequiredNote === 'CHOXEMHANGKHONGTHU' ? 'Cho xem hàng không thử' :
+                           shippingRequiredNote === 'CHOKHONGXEMHANG' ? 'Cho không xem hàng' : 'Không cho xem hàng'}
+                        </span>
+                        <TbChevronDown className={`arrow-icon ${isModalDropdownOpen ? 'open' : ''}`} style={{ color: 'var(--primary)' }} />
+                      </div>
+                      {isModalDropdownOpen && (
+                        <div className="custom-dropdown-menu" style={{ 
+                          borderRadius: '4px', 
+                          backgroundColor: '#161616', 
+                          border: '1px solid #2a2a2e',
+                          top: 'calc(100% + 2px)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                          width: '100%',
+                          boxSizing: 'border-box'
+                        }}>
+                          {[
+                            { value: 'CHOXEMHANGKHONGTHU', label: 'Cho xem hàng không thử' },
+                            { value: 'CHOKHONGXEMHANG', label: 'Cho không xem hàng' },
+                            { value: 'KHONGCHOXEMHANG', label: 'Không cho xem hàng' }
+                          ].map((opt) => (
+                            <div
+                              key={opt.value}
+                              className={`custom-dropdown-item ${shippingRequiredNote === opt.value ? 'selected' : ''}`}
+                              onClick={() => {
+                                setShippingRequiredNote(opt.value);
+                                setIsModalDropdownOpen(false);
+                              }}
+                              style={{
+                                padding: '10px 12px',
+                                cursor: 'pointer',
+                                transition: 'var(--transition)',
+                                color: shippingRequiredNote === opt.value ? 'var(--primary)' : 'var(--text-main)'
+                              }}
+                            >
+                              {opt.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, marginBottom: '6px' }}>
+                      Ghi chú thêm cho shipper
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: Gọi điện trước khi giao, hàng dễ vỡ..."
+                      value={shippingNote}
+                      onChange={(e) => setShippingNote(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '4px',
+                        backgroundColor: '#0f0f11',
+                        border: '1px solid #2a2a2e',
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, marginBottom: '6px' }}>
+                        Trọng lượng (gram) <span style={{ color: '#E53E3E' }}>*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={shippingWeight}
+                        onChange={(e) => setShippingWeight(Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '4px',
+                          backgroundColor: '#0f0f11',
+                          border: '1px solid #2a2a2e',
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          outline: 'none'
+                        }}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, marginBottom: '6px' }}>
+                        Chiều dài (cm) <span style={{ color: '#E53E3E' }}>*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={shippingLength}
+                        onChange={(e) => setShippingLength(Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '4px',
+                          backgroundColor: '#0f0f11',
+                          border: '1px solid #2a2a2e',
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          outline: 'none'
+                        }}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, marginBottom: '6px' }}>
+                        Chiều rộng (cm) <span style={{ color: '#E53E3E' }}>*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={shippingWidth}
+                        onChange={(e) => setShippingWidth(Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '4px',
+                          backgroundColor: '#0f0f11',
+                          border: '1px solid #2a2a2e',
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          outline: 'none'
+                        }}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, marginBottom: '6px' }}>
+                        Chiều cao (cm) <span style={{ color: '#E53E3E' }}>*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={shippingHeight}
+                        onChange={(e) => setShippingHeight(Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '4px',
+                          backgroundColor: '#0f0f11',
+                          border: '1px solid #2a2a2e',
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          outline: 'none'
+                        }}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn-action-secondary"
+                      onClick={() => setShowUpdateShippingModal(false)}
+                      style={{
+                        backgroundColor: '#2a2a2e',
+                        borderColor: '#2a2a2e',
+                        color: '#ffffff',
+                        padding: '8px 16px',
+                        fontSize: '13px'
+                      }}
+                      disabled={processingAction}
+                    >
+                      Hủy bỏ
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-action-primary"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '13px'
+                      }}
+                      disabled={processingAction}
+                    >
+                      {processingAction ? <TbLoader className="spin" /> : <TbCheck />}
+                      Cập nhật
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {confirmModal.isOpen && createPortal(
+            <div className="modal-overlay" style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(15, 15, 17, 0.85)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              backdropFilter: 'blur(4px)'
+            }}>
+              <div className="card" style={{
+                width: '100%',
+                maxWidth: '440px',
+                padding: '24px',
+                borderRadius: '4px',
+                border: '1px solid #2a2a2e',
+                backgroundColor: '#16161a',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+              }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)', marginBottom: '12px' }}>
+                  {confirmModal.title}
+                </h3>
+                <p style={{ fontSize: '14.5px', color: 'var(--text-main)', marginBottom: '24px', lineHeight: '1.5' }}>
+                  {confirmModal.message}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button
+                    type="button"
+                    className="btn-action-secondary"
+                    onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                    style={{
+                      backgroundColor: '#2a2a2e',
+                      borderColor: '#2a2a2e',
+                      color: '#ffffff',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action-primary"
+                    onClick={async () => {
+                      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                      await confirmModal.onConfirm();
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    Đồng ý
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
         </div>
       )}
     </div>
@@ -717,7 +1434,7 @@ export const Orders: React.FC = () => {
   return (
     <>
       {id ? (
-        <OrderDetailView orderId={id} navigate={navigate} />
+        <OrderDetailView orderId={id} />
       ) : (
         <OrderListView navigate={navigate} />
       )}
@@ -823,7 +1540,7 @@ export const Orders: React.FC = () => {
           transition: var(--transition);
         }
         .custom-dropdown-header.active {
-          border-color: var(--primary);
+          border-color: #4a4a4f;
         }
         .custom-dropdown-header .arrow-icon {
           color: #da447d;
@@ -995,7 +1712,7 @@ export const Orders: React.FC = () => {
           display: flex;
           gap: 10px;
         }
-        .btn-action-primary, .btn-action-outline {
+        .btn-action-primary, .btn-action-secondary, .btn-action-outline {
           display: flex;
           align-items: center;
           gap: 8px;
@@ -1005,6 +1722,7 @@ export const Orders: React.FC = () => {
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s ease;
+          border: 1px solid transparent;
         }
         .btn-action-primary {
           background-color: var(--primary);
@@ -1015,6 +1733,13 @@ export const Orders: React.FC = () => {
           background-color: var(--primary-hover);
         }
         .btn-action-primary:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .btn-action-secondary:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+        .btn-action-secondary:disabled {
           opacity: 0.6;
           cursor: not-allowed;
         }

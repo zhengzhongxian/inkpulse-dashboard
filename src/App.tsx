@@ -6,6 +6,7 @@ import Header from './components/Header';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
+import { Refunds } from './pages/Refunds';
 import Products from './pages/Products';
 import ProductForm from './pages/ProductForm';
 import Customers from './pages/Customers';
@@ -21,6 +22,7 @@ import { Badges } from './pages/Badges';
 import { BadgeForm } from './pages/BadgeForm';
 import { Publishers } from './pages/Publishers';
 import { PublisherForm } from './pages/PublisherForm';
+import { SystemSettings } from './pages/SystemSettings';
 import './App.css';
 
 // Protected Layout wrapper to guard dashboard routes
@@ -36,7 +38,7 @@ const DashboardLayout = () => {
   return (
     <div className="dashboard-container">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         <Header onOpenSidebar={() => setSidebarOpen(true)} />
         <main className="main-content">
           <Outlet />
@@ -72,6 +74,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/orders/:id" element={<Orders />} />
+            <Route path="/refunds" element={<Refunds />} />
             <Route path="/products" element={<Products />} />
             <Route path="/products/add" element={<ProductForm />} />
             <Route path="/products/edit/:id" element={<ProductForm />} />
@@ -92,6 +95,7 @@ function App() {
             <Route path="/publishers" element={<Publishers />} />
             <Route path="/publishers/new" element={<PublisherForm />} />
             <Route path="/publishers/edit/:id" element={<PublisherForm />} />
+            <Route path="/system-settings" element={<SystemSettings />} />
           </Route>
 
           {/* Catch-all Fallback */}

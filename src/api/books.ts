@@ -84,6 +84,8 @@ export const getInternalBooksApi = (params: {
   sortDirection?: string;
   minPrice?: number;
   maxPrice?: number;
+  startDate?: string;
+  endDate?: string;
 }) => {
   return authClient.get<any>('/books', { params });
 };
@@ -234,4 +236,18 @@ export const updatePublisherApi = (id: string, data: { name: string; address?: s
 export const deletePublisherApi = (id: string) => {
   return authClient.delete<any>(`/publishers/${id}`);
 };
+
+// Stock Management APIs
+export const importStockApi = (data: { editionId: string; quantity: number; note: string }) => {
+  return authClient.post<any>('/stock/import', data);
+};
+
+export const adjustStockApi = (data: { editionId: string; newQuantity: number; note: string }) => {
+  return authClient.post<any>('/stock/adjust', data);
+};
+
+export const getStockHistoryApi = (editionId: string, params?: { page?: number; size?: number }) => {
+  return authClient.get<any>(`/stock/history/${editionId}`, { params });
+};
+
 

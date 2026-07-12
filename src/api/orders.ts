@@ -25,6 +25,9 @@ export interface OrderItemDetailDto {
   quantity: number;
   priceDisplay: string;
   subtotalDisplay: string;
+  editionNumber?: number;
+  coverType?: string;
+  isbn?: string;
 }
 
 export interface OrderDetailDto {
@@ -46,13 +49,28 @@ export interface OrderDetailDto {
   createdAt: string;
 }
 
-export const getInternalOrders = (page: number, size: number, search?: string, status?: string) => {
+export const getInternalOrders = (
+  page: number,
+  size: number,
+  search?: string,
+  status?: string,
+  startDate?: string,
+  endDate?: string,
+  paymentMethod?: string,
+  minAmount?: number,
+  maxAmount?: number
+) => {
   return authClient.get<ResultRes<any>>(`/orders/internal`, {
     params: {
       page,
       size,
       search: search || undefined,
-      status: status && status !== 'ALL' ? status : undefined
+      status: status && status !== 'ALL' ? status : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      paymentMethod: paymentMethod && paymentMethod !== 'ALL' ? paymentMethod : undefined,
+      minAmount: minAmount || undefined,
+      maxAmount: maxAmount || undefined
     }
   });
 };
@@ -71,4 +89,29 @@ export const packOrder = (orderCode: string) => {
 
 export const approveOrder = (orderCode: string) => {
   return authClient.post<ResultRes<any>>(`/orders/${orderCode}/approve`);
+};
+
+export const printOrderLabel = (orderCode: string) => {
+  return authClient.post<ResultRes<{ printUrl: string }>>(`/orders/${orderCode}/print`);
+};
+
+export const cancelOrder = (orderCode: string) => {
+  return authClient.post<ResultRes<any>>(`/orders/${orderCode}/cancel`);
+};
+
+export const returnOrder = (orderCode: string) => {
+  return authClient.post<ResultRes<any>>(`/orders/${orderCode}/return`);
+};
+
+export interface UpdateShippingRequest {
+  note?: string;
+  requiredNote?: string;
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+}
+
+export const updateOrderShipping = (orderCode: string, request: UpdateShippingRequest) => {
+  return authClient.post<ResultRes<any>>(`/orders/${orderCode}/shipping-update`, request);
 };

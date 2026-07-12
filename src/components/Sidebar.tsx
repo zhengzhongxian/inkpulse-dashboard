@@ -9,7 +9,8 @@ import {
   TbUserHeart,
   TbNews,
   TbChevronDown,
-  TbChevronUp
+  TbChevronUp,
+  TbSettings
 } from 'react-icons/tb';
 
 interface SidebarProps {
@@ -76,6 +77,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               >
                 <span className="bullet"></span>
                 <span>Mã giảm giá</span>
+              </NavLink>
+              <NavLink
+                to="/refunds"
+                className={({ isActive }) => `sub-nav-item ${isActive ? 'active' : ''}`}
+                onClick={onClose}
+              >
+                <span className="bullet"></span>
+                <span>Phiếu hoàn tiền</span>
               </NavLink>
             </div>
           )}
@@ -175,6 +184,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <TbNews className="nav-icon" />
           <span>Bài viết</span>
         </NavLink>
+
+        {/* Cấu hình hệ thống */}
+        {isAdmin && (
+          <NavLink
+            to="/system-settings"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={onClose}
+          >
+            <TbSettings className="nav-icon" />
+            <span>Cấu hình hệ thống</span>
+          </NavLink>
+        )}
       </nav>
 
       {/* CSS For Sidebar styling inside this component or index.css */}
@@ -277,6 +298,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           font-weight: 500;
           font-size: 14.5px;
           transition: var(--transition);
+          white-space: nowrap;
         }
 
         .nav-item:hover, .nav-item.active {
@@ -313,6 +335,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           cursor: pointer;
           transition: var(--transition);
           user-select: none;
+          white-space: nowrap;
         }
 
         .nav-group-header:hover {
