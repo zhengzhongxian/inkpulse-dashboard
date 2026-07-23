@@ -28,6 +28,12 @@ export interface OrderItemDetailDto {
   editionNumber?: number;
   coverType?: string;
   isbn?: string;
+  isFlashSale?: boolean;
+  flashSaleDiscountAmountDisplay?: string;
+  flashSaleItemId?: string;
+  oldPriceDisplay?: string;
+  voucherDiscountAmountDisplay?: string;
+  isVoucherApplied?: boolean;
 }
 
 export interface OrderDetailDto {
@@ -47,6 +53,8 @@ export interface OrderDetailDto {
   totalDisplay: string;
   items: OrderItemDetailDto[];
   createdAt: string;
+  voucherCode?: string;
+  voucherDiscountAmountDisplay?: string;
 }
 
 export const getInternalOrders = (
@@ -58,7 +66,9 @@ export const getInternalOrders = (
   endDate?: string,
   paymentMethod?: string,
   minAmount?: number,
-  maxAmount?: number
+  maxAmount?: number,
+  hasVoucher?: boolean,
+  hasFlashSale?: boolean
 ) => {
   return authClient.get<ResultRes<any>>(`/orders/internal`, {
     params: {
@@ -70,7 +80,9 @@ export const getInternalOrders = (
       endDate: endDate || undefined,
       paymentMethod: paymentMethod && paymentMethod !== 'ALL' ? paymentMethod : undefined,
       minAmount: minAmount || undefined,
-      maxAmount: maxAmount || undefined
+      maxAmount: maxAmount || undefined,
+      hasVoucher: hasVoucher !== undefined ? hasVoucher : undefined,
+      hasFlashSale: hasFlashSale !== undefined ? hasFlashSale : undefined
     }
   });
 };

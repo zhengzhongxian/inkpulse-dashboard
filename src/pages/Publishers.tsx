@@ -10,7 +10,7 @@ interface Publisher {
   address: string | null;
 }
 
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from '../utils/constants';
 
 export const Publishers: React.FC = () => {
   const navigate = useNavigate();

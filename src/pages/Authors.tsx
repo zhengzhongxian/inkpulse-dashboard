@@ -11,7 +11,7 @@ interface Author {
   avatarUrl: string | null;
 }
 
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from '../utils/constants';
 
 export const Authors: React.FC = () => {
   const navigate = useNavigate();

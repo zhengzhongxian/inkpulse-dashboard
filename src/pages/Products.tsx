@@ -11,7 +11,19 @@ import type {
 import { TbSearch, TbChevronDown, TbBookmarkPlus, TbChevronLeft, TbChevronRight, TbArrowNarrowUp, TbArrowNarrowDown } from 'react-icons/tb';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from '../utils/constants';
+
+const formatDateTime = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  const formatted = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
+  return new Date(formatted).toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 export const Products: React.FC = () => {
   const navigate = useNavigate();
@@ -529,6 +541,7 @@ export const Products: React.FC = () => {
             value={endDate}
             onChange={setEndDate}
             placeholder="đến..."
+            align="right"
           />
         </div>
 
@@ -644,7 +657,7 @@ export const Products: React.FC = () => {
                       {totalStock > 0 ? `${totalStock} cuốn` : 'Hết hàng'}
                     </td>
                     <td style={{ color: 'var(--text-light)', fontSize: '13px' }}>
-                      {p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      {formatDateTime(p.createdAt)}
                     </td>
                     <td>
                       <button className="btn-detail-link" onClick={() => navigate(`/products/edit/${p.id}`)}>

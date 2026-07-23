@@ -14,7 +14,13 @@ import {
 import { toast } from '../utils/toast';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from '../utils/constants';
+
+const formatDateTime = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const formatted = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
+  return new Date(formatted).toLocaleString('vi-VN');
+};
 
 export const Refunds: React.FC = () => {
   const [refunds, setRefunds] = useState<RefundRequestDto[]>([]);
@@ -178,6 +184,7 @@ export const Refunds: React.FC = () => {
             value={endDate}
             onChange={setEndDate}
             placeholder="đến..."
+            align="right"
           />
         </div>
 
@@ -245,7 +252,7 @@ export const Refunds: React.FC = () => {
                   <td style={{ padding: '14px 16px', color: 'var(--text-main)', fontSize: '13.5px' }}>{r.reason}</td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-light)', fontSize: '13px' }}>{r.approvedByUsername || '-'}</td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-light)', fontSize: '13px' }}>
-                    {new Date(r.createdAt).toLocaleString('vi-VN')}
+                    {formatDateTime(r.createdAt)}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <span className={`badge ${r.status.toLowerCase()}`}>

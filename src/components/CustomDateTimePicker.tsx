@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TbChevronLeft, TbChevronRight, TbCalendar, TbX } from 'react-icons/tb';
 
-interface CustomDatePickerProps {
-  value: string; // YYYY-MM-DD format
-  onChange: (date: string) => void;
+interface CustomDateTimePickerProps {
+  value: string; // YYYY-MM-DDTHH:mm format
+  onChange: (dateTime: string) => void;
   placeholder: string;
   align?: 'left' | 'right';
 }
 
-export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
+export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
   value,
   onChange,
   placeholder,
@@ -17,17 +17,38 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Parse initial date or default to current date
-  const initialDate = value ? new Date(value) : new Date();
+  // Parse initial date-time: expected format "YYYY-MM-DDTHH:mm"
+  // Fallback to current date-time
+  const parseValue = (val: string) => {
+    if (!val) return { dateStr: '', hour: 0, minute: 0 };
+    const parts = val.split('T');
+    const dateStr = parts[0] || '';
+    const timeStr = parts[1] || '00:00';
+    const [h, m] = timeStr.split(':').map(Number);
+    return { dateStr, hour: isNaN(h) ? 0 : h, minute: isNaN(m) ? 0 : m };
+  };
+
+  const { dateStr, hour, minute } = parseValue(value);
+
+  const initialDate = dateStr ? new Date(dateStr) : new Date();
   const [viewMonth, setViewMonth] = useState(initialDate.getMonth());
   const [viewYear, setViewYear] = useState(initialDate.getFullYear());
+  const [selectedDate, setSelectedDate] = useState(dateStr);
+  const [selectedHour, setSelectedHour] = useState(hour);
+  const [selectedMinute, setSelectedMinute] = useState(minute);
 
   useEffect(() => {
-    if (value) {
-      const d = new Date(value);
+    const parsed = parseValue(value);
+    if (parsed.dateStr) {
+      setSelectedDate(parsed.dateStr);
+      const d = new Date(parsed.dateStr);
       setViewMonth(d.getMonth());
       setViewYear(d.getFullYear());
+    } else {
+      setSelectedDate('');
     }
+    setSelectedHour(parsed.hour);
+    setSelectedMinute(parsed.minute);
   }, [value]);
 
   // Click outside listener
@@ -73,7 +94,38 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const handleSelectDay = (day: number) => {
     const m = String(viewMonth + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
-    onChange(`${viewYear}-${m}-${d}`);
+    const newDateStr = `${viewYear}-${m}-${d}`;
+    setSelectedDate(newDateStr);
+    
+    // Update value reactively
+    const hr = String(selectedHour).padStart(2, '0');
+    const min = String(selectedMinute).padStart(2, '0');
+    onChange(`${newDateStr}T${hr}:${min}`);
+  };
+
+  const handleTimeChange = (h: number, m: number) => {
+    setSelectedHour(h);
+    setSelectedMinute(m);
+    
+    if (selectedDate) {
+      const hr = String(h).padStart(2, '0');
+      const min = String(m).padStart(2, '0');
+      onChange(`${selectedDate}T${hr}:${min}`);
+    } else {
+      // If no date selected yet, default to today
+      const today = new Date();
+      const yr = today.getFullYear();
+      const mth = String(today.getMonth() + 1).padStart(2, '0');
+      const dy = String(today.getDate()).padStart(2, '0');
+      const hr = String(h).padStart(2, '0');
+      const min = String(m).padStart(2, '0');
+      const newDateStr = `${yr}-${mth}-${dy}`;
+      setSelectedDate(newDateStr);
+      onChange(`${newDateStr}T${hr}:${min}`);
+    }
+  };
+
+  const handleConfirm = () => {
     setIsOpen(false);
   };
 
@@ -82,13 +134,17 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     onChange('');
   };
 
-  const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return placeholder;
-    const [y, m, d] = dateStr.split('-');
-    return `${d}/${m}/${y}`;
+  const formatDateDisplay = (dateTimeStr: string) => {
+    if (!dateTimeStr) return placeholder;
+    const parts = dateTimeStr.split('T');
+    const dStr = parts[0] || '';
+    const tStr = parts[1] || '00:00';
+    if (!dStr) return placeholder;
+    
+    const [y, m, d] = dStr.split('-');
+    return `${d}/${m}/${y} ${tStr}`;
   };
 
-  // Generate year options (from 2020 to current + 5 years)
   const currentYear = new Date().getFullYear();
   const yearOptions: number[] = [];
   for (let y = 2020; y <= currentYear + 5; y++) {
@@ -96,7 +152,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   }
 
   return (
-    <div className="custom-datepicker-container" ref={containerRef} style={{ position: 'relative', width: '170px', userSelect: 'none' }}>
+    <div className="custom-datetimepicker-container" ref={containerRef} style={{ position: 'relative', width: '210px', userSelect: 'none' }}>
       <div
         className={`custom-datepicker-trigger ${isOpen ? 'active' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
@@ -255,16 +311,16 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           </div>
 
           {/* Days Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '14px' }}>
             {Array.from({ length: firstDayIndex }).map((_, idx) => (
               <div key={`empty-${idx}`} style={{ height: '28px' }}></div>
             ))}
             {Array.from({ length: daysInMonth }).map((_, idx) => {
               const day = idx + 1;
-              const isSelected = value &&
-                new Date(value).getDate() === day &&
-                new Date(value).getMonth() === viewMonth &&
-                new Date(value).getFullYear() === viewYear;
+              const isSelected = selectedDate &&
+                new Date(selectedDate).getDate() === day &&
+                new Date(selectedDate).getMonth() === viewMonth &&
+                new Date(selectedDate).getFullYear() === viewYear;
 
               return (
                 <div
@@ -283,8 +339,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = 'rgba(246, 135, 179, 0.1)';
-                      e.currentTarget.style.color = '#F687B3';
+                      e.currentTarget.style.backgroundColor = 'rgba(246, 173, 85, 0.1)';
+                      e.currentTarget.style.color = '#f6ad55';
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -298,6 +354,82 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                 </div>
               );
             })}
+          </div>
+
+          {/* Time Selector Area */}
+          <div style={{ borderTop: '1px solid #2a2a2e', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Thời gian:</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <select
+                  value={selectedHour}
+                  onChange={(e) => handleTimeChange(Number(e.target.value), selectedMinute)}
+                  style={{
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #2a2a2e',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    padding: '4px 6px',
+                    borderRadius: '6px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font)',
+                    fontWeight: '600',
+                    width: '50px'
+                  }}
+                >
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <option key={h} value={h}>{String(h).padStart(2, '0')}</option>
+                  ))}
+                </select>
+                <span style={{ color: '#ffffff', fontWeight: 700 }}>:</span>
+                <select
+                  value={selectedMinute}
+                  onChange={(e) => handleTimeChange(selectedHour, Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #2a2a2e',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    padding: '4px 6px',
+                    borderRadius: '6px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font)',
+                    fontWeight: '600',
+                    width: '50px'
+                  }}
+                >
+                  {Array.from({ length: 60 }).map((_, m) => (
+                    <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleConfirm}
+                style={{
+                  background: 'linear-gradient(135deg, #da447d, #b83469)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  transition: 'var(--transition)'
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.filter = 'none';
+                }}
+              >
+                Xác nhận
+              </button>
+            </div>
           </div>
         </div>
       )}

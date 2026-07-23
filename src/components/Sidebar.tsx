@@ -79,6 +79,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <span>Mã giảm giá</span>
               </NavLink>
               <NavLink
+                to="/flash-sales"
+                className={({ isActive }) => `sub-nav-item ${isActive ? 'active' : ''}`}
+                onClick={onClose}
+              >
+                <span className="bullet"></span>
+                <span>Flash Sale</span>
+              </NavLink>
+              <NavLink
                 to="/refunds"
                 className={({ isActive }) => `sub-nav-item ${isActive ? 'active' : ''}`}
                 onClick={onClose}

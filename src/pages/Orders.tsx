@@ -28,12 +28,20 @@ import {
   TbArrowLeft,
   TbChevronDown,
   TbChevronsDown,
-  TbFileText
+  TbFileText,
+  TbAdjustments,
+  TbRefresh
 } from 'react-icons/tb';
 import { toast } from '../utils/toast';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from '../utils/constants';
+
+const formatDateTime = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const formatted = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
+  return new Date(formatted).toLocaleString('vi-VN');
+};
 
 // Sub-component: Order List View (full page table layout like Books inventory)
 const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({ navigate }) => {
@@ -50,6 +58,35 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
   const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false);
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [hasVoucherFilter, setHasVoucherFilter] = useState<boolean | undefined>(undefined);
+  const [hasFlashSaleFilter, setHasFlashSaleFilter] = useState<boolean | undefined>(undefined);
+  const [isVoucherDropdownOpen, setIsVoucherDropdownOpen] = useState(false);
+  const [isFlashSaleDropdownOpen, setIsFlashSaleDropdownOpen] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  const hasActiveFilters = !!(
+    searchTerm ||
+    startDate ||
+    endDate ||
+    paymentMethodFilter !== 'ALL' ||
+    minAmount ||
+    maxAmount ||
+    statusFilter !== 'ALL' ||
+    hasVoucherFilter !== undefined ||
+    hasFlashSaleFilter !== undefined
+  );
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setPaymentMethodFilter('ALL');
+    setMinAmount('');
+    setMaxAmount('');
+    setStatusFilter('ALL');
+    setHasVoucherFilter(undefined);
+    setHasFlashSaleFilter(undefined);
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,7 +101,9 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
     endD?: string,
     payM?: string,
     minA?: string,
-    maxA?: string
+    maxA?: string,
+    hasV?: boolean,
+    hasFS?: boolean
   ) => {
     setLoading(true);
     try {
@@ -80,7 +119,9 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
         endD || undefined,
         payM || undefined,
         minVal,
-        maxVal
+        maxVal,
+        hasV,
+        hasFS
       );
       if (res.data && res.data.success && res.data.data) {
         const paged = res.data.data;
@@ -98,7 +139,7 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, startDate, endDate, paymentMethodFilter, minAmount, maxAmount]);
+  }, [searchTerm, statusFilter, startDate, endDate, paymentMethodFilter, minAmount, maxAmount, hasVoucherFilter, hasFlashSaleFilter]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -110,11 +151,13 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
         endDate,
         paymentMethodFilter,
         minAmount,
-        maxAmount
+        maxAmount,
+        hasVoucherFilter,
+        hasFlashSaleFilter
       );
     }, 400);
     return () => clearTimeout(handler);
-  }, [currentPage, searchTerm, statusFilter, startDate, endDate, paymentMethodFilter, minAmount, maxAmount]);
+  }, [currentPage, searchTerm, statusFilter, startDate, endDate, paymentMethodFilter, minAmount, maxAmount, hasVoucherFilter, hasFlashSaleFilter]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -122,6 +165,8 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
       if (!target.closest('.custom-dropdown-container')) {
         setIsSelectOpen(false);
         setIsPaymentDropdownOpen(false);
+        setIsVoucherDropdownOpen(false);
+        setIsFlashSaleDropdownOpen(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -213,11 +258,11 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
 
       {/* Filters Bar */}
       <div className="filters-row" style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div className="search-wrap-custom">
+        <div className="search-wrap-custom" style={{ flexGrow: 1, maxWidth: '560px' }}>
           <input
             type="text"
             className="search-input-custom"
-            placeholder="Tìm kiếm theo mã đơn hàng..."
+            placeholder="Tìm kiếm theo mã đơn hàng, tên người nhận..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -226,32 +271,43 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
           </button>
         </div>
 
-        {/* Bộ lọc khoảng ngày đặt hàng */}
-        <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CustomDatePicker
-            value={startDate}
-            onChange={setStartDate}
-            placeholder="Từ ngày..."
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
-          <CustomDatePicker
-            value={endDate}
-            onChange={setEndDate}
-            placeholder="đến..."
-          />
+        {/* Bộ lọc trạng thái */}
+        <div className="custom-dropdown-container" style={{ width: '180px' }}>
+          <div
+            className={`custom-dropdown-header ${statusFilter !== 'ALL' ? 'active' : ''}`}
+            onClick={() => setIsSelectOpen(!isSelectOpen)}
+            style={{ height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <span>{getStatusText(statusFilter)}</span>
+            <TbChevronDown className={`arrow-icon ${isSelectOpen ? 'open' : ''}`} />
+          </div>
+          {isSelectOpen && (
+            <div className="custom-dropdown-menu" style={{ width: '100%', zIndex: 10 }}>
+              {['ALL', 'PENDING', 'PENDING_PAYMENT', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((st) => (
+                <div
+                  key={st}
+                  className={`custom-dropdown-item ${statusFilter === st ? 'selected' : ''}`}
+                  onClick={() => { setStatusFilter(st); setIsSelectOpen(false); }}
+                >
+                  {getStatusText(st)}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Bộ lọc hình thức thanh toán */}
         <div className="custom-dropdown-container" style={{ width: '180px' }}>
           <div
-            className={`custom-dropdown-header ${isPaymentDropdownOpen ? 'active' : ''}`}
+            className={`custom-dropdown-header ${paymentMethodFilter !== 'ALL' ? 'active' : ''}`}
             onClick={() => setIsPaymentDropdownOpen(!isPaymentDropdownOpen)}
+            style={{ height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
             <span>{getPaymentMethodText(paymentMethodFilter)}</span>
             <TbChevronDown className={`arrow-icon ${isPaymentDropdownOpen ? 'open' : ''}`} />
           </div>
           {isPaymentDropdownOpen && (
-            <div className="custom-dropdown-menu">
+            <div className="custom-dropdown-menu" style={{ width: '100%', zIndex: 10 }}>
               {['ALL', 'COD', 'PAYOS', 'COIN'].map((pm) => (
                 <div
                   key={pm}
@@ -276,7 +332,7 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
               const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
               setMinAmount(formatted);
             }}
-            style={{ width: '130px' }}
+            style={{ width: '130px', height: '42px', backgroundColor: 'transparent', border: '1px solid #2d2d30' }}
           />
           <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
           <input
@@ -288,34 +344,165 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
               const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
               setMaxAmount(formatted);
             }}
-            style={{ width: '130px' }}
+            style={{ width: '130px', height: '42px', backgroundColor: 'transparent', border: '1px solid #2d2d30' }}
           />
         </div>
 
-        {/* Bộ lọc trạng thái */}
-        <div className="custom-dropdown-container">
-          <div
-            className={`custom-dropdown-header ${isSelectOpen ? 'active' : ''}`}
-            onClick={() => setIsSelectOpen(!isSelectOpen)}
+        {/* Toggle Advanced Filters Button */}
+        <button
+          type="button"
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: showAdvancedFilters ? 'rgba(218, 68, 125, 0.15)' : 'none',
+            border: showAdvancedFilters ? '1px solid var(--primary)' : '1px solid #2d2d30',
+            borderRadius: '10px',
+            color: showAdvancedFilters ? '#F687B3' : 'var(--text-light)',
+            height: '42px',
+            padding: '0 16px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '13.5px',
+            transition: 'all 0.2s ease',
+            outline: 'none'
+          }}
+        >
+          <TbAdjustments style={{ fontSize: '16px' }} />
+          Bộ lọc nâng cao
+        </button>
+
+        {/* Reset Filters button */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: 'none',
+              color: '#f687b3',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '13.5px',
+              height: '42px'
+            }}
           >
-            <span>{getStatusText(statusFilter)}</span>
-            <TbChevronDown className={`arrow-icon ${isSelectOpen ? 'open' : ''}`} />
-          </div>
-          {isSelectOpen && (
-            <div className="custom-dropdown-menu">
-              {['ALL', 'PENDING', 'PENDING_PAYMENT', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((st) => (
-                <div
-                  key={st}
-                  className={`custom-dropdown-item ${statusFilter === st ? 'selected' : ''}`}
-                  onClick={() => { setStatusFilter(st); setIsSelectOpen(false); }}
-                >
-                  {getStatusText(st)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            <TbRefresh style={{ fontSize: '15px' }} />
+            Đặt lại
+          </button>
+        )}
       </div>
+
+      {/* Collapsible Advanced Filters (No Boxed Panel) */}
+      {showAdvancedFilters && (
+        <div style={{
+          display: 'flex',
+          gap: '24px',
+          alignItems: 'flex-start',
+          marginBottom: '24px',
+          marginTop: '-8px',
+          flexWrap: 'wrap',
+          animation: 'fadeIn 0.3s ease',
+          textAlign: 'left'
+        }}>
+          
+          {/* 1. Khoảng ngày đặt */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#F687B3' }}>Khoảng ngày đặt hàng</span>
+            <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CustomDatePicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="Từ ngày..."
+              />
+              <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
+              <CustomDatePicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="đến..."
+                align="right"
+              />
+            </div>
+          </div>
+
+          {/* 2. Bộ lọc Voucher */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '200px' }}>
+            <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#F687B3' }}>Sử dụng Voucher</span>
+            <div className="custom-dropdown-container" style={{ width: '100%' }}>
+              <div
+                className={`custom-dropdown-header ${hasVoucherFilter !== undefined ? 'active' : ''}`}
+                onClick={() => setIsVoucherDropdownOpen(!isVoucherDropdownOpen)}
+                style={{ height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span>
+                  {hasVoucherFilter === undefined && "Mọi Voucher"}
+                  {hasVoucherFilter === true && "Đơn có Voucher"}
+                  {hasVoucherFilter === false && "Đơn không Voucher"}
+                </span>
+                <TbChevronDown className={`arrow-icon ${isVoucherDropdownOpen ? 'open' : ''}`} />
+              </div>
+              {isVoucherDropdownOpen && (
+                <div className="custom-dropdown-menu" style={{ width: '100%', zIndex: 10 }}>
+                  {[
+                    { value: undefined, label: "Mọi Voucher" },
+                    { value: true, label: "Đơn có Voucher" },
+                    { value: false, label: "Đơn không Voucher" }
+                  ].map((opt, i) => (
+                    <div
+                      key={i}
+                      className={`custom-dropdown-item ${hasVoucherFilter === opt.value ? 'selected' : ''}`}
+                      onClick={() => { setHasVoucherFilter(opt.value); setIsVoucherDropdownOpen(false); }}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 3. Bộ lọc Flash Sale */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '200px' }}>
+            <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#F687B3' }}>Sản phẩm Flash Sale</span>
+            <div className="custom-dropdown-container" style={{ width: '100%' }}>
+              <div
+                className={`custom-dropdown-header ${hasFlashSaleFilter !== undefined ? 'active' : ''}`}
+                onClick={() => setIsFlashSaleDropdownOpen(!isFlashSaleDropdownOpen)}
+                style={{ height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span>
+                  {hasFlashSaleFilter === undefined && "Mọi Flash Sale"}
+                  {hasFlashSaleFilter === true && "Đơn có Flash Sale"}
+                  {hasFlashSaleFilter === false && "Đơn không Flash Sale"}
+                </span>
+                <TbChevronDown className={`arrow-icon ${isFlashSaleDropdownOpen ? 'open' : ''}`} />
+              </div>
+              {isFlashSaleDropdownOpen && (
+                <div className="custom-dropdown-menu" style={{ width: '100%', zIndex: 10 }}>
+                  {[
+                    { value: undefined, label: "Mọi Flash Sale" },
+                    { value: true, label: "Đơn có Flash Sale" },
+                    { value: false, label: "Đơn không Flash Sale" }
+                  ].map((opt, i) => (
+                    <div
+                      key={i}
+                      className={`custom-dropdown-item ${hasFlashSaleFilter === opt.value ? 'selected' : ''}`}
+                      onClick={() => { setHasFlashSaleFilter(opt.value); setIsFlashSaleDropdownOpen(false); }}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      )}
 
       {/* Orders Data Table */}
       <div className="card" style={{ position: 'relative', overflow: 'hidden', padding: 0, borderRadius: 0 }}>
@@ -348,7 +535,7 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
                     </span>
                   </td>
                   <td style={{ fontSize: '13.5px', color: 'var(--text-light)' }}>
-                    {new Date(o.createdAt).toLocaleString('vi-VN')}
+                    {formatDateTime(o.createdAt)}
                   </td>
                   <td>
                     <div style={{
@@ -432,10 +619,22 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
   );
 };
 
+const getNumericDiscount = (displayStr?: string) => {
+  if (!displayStr) return 0;
+  const num = parseInt(displayStr.replace(/[^\d]/g, ''), 10);
+  return isNaN(num) ? 0 : num;
+};
+
 // Sub-component: Order Detail View (full page detail view layout)
 const OrderDetailView: React.FC<{ orderId: string }> = ({ orderId }) => {
   const [orderDetail, setOrderDetail] = useState<OrderDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const totalFlashSaleDiscount = orderDetail?.items
+    ? orderDetail.items.reduce((sum: number, item: any) => {
+        return sum + getNumericDiscount(item.flashSaleDiscountAmountDisplay);
+      }, 0)
+    : 0;
   const [logs, setLogs] = useState<OrderLogDto[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [processingAction, setProcessingAction] = useState(false);
@@ -762,7 +961,7 @@ const OrderDetailView: React.FC<{ orderId: string }> = ({ orderId }) => {
         <table class="info-table">
           <tr>
             <td style="width: 50%;"><strong>Khách nhận:</strong> ${orderDetail.receiverName}</td>
-            <td><strong>Ngày đặt:</strong> ${new Date(orderDetail.createdAt).toLocaleString('vi-VN')}</td>
+            <td><strong>Ngày đặt:</strong> ${formatDateTime(orderDetail.createdAt)}</td>
           </tr>
           <tr>
             <td><strong>Số điện thoại:</strong> ${orderDetail.recipientPhone}</td>
@@ -820,7 +1019,7 @@ const OrderDetailView: React.FC<{ orderId: string }> = ({ orderId }) => {
           Chi tiết đơn hàng: <span style={{ color: 'var(--primary)' }}>{orderDetail?.orderCode}</span>
         </h1>
         <p className="view-subtitle" style={{ margin: 0, marginTop: '4px' }}>
-          {orderDetail ? `Đặt ngày: ${new Date(orderDetail.createdAt).toLocaleString('vi-VN')}` : 'Đang tải thông tin đơn hàng...'}
+          {orderDetail ? `Đặt ngày: ${formatDateTime(orderDetail.createdAt)}` : 'Đang tải thông tin đơn hàng...'}
         </p>
       </div>
 
@@ -993,11 +1192,57 @@ const OrderDetailView: React.FC<{ orderId: string }> = ({ orderId }) => {
                           <span>ISBN: {item.isbn}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#F687B3', marginTop: '4px', fontWeight: 600 }}>Đơn giá: {item.priceDisplay}</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                        {item.isFlashSale ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ color: '#F687B3', fontWeight: 700 }}>
+                              Giá Flash Sale: {((getNumericDiscount(item.priceDisplay) * item.quantity - getNumericDiscount(item.flashSaleDiscountAmountDisplay)) / item.quantity).toLocaleString('vi-VN')}đ
+                            </span>
+                            <span style={{ color: 'var(--text-light)', textDecoration: 'line-through', fontSize: '11px' }}>
+                              {item.oldPriceDisplay}
+                            </span>
+                          </div>
+                        ) : getNumericDiscount(item.oldPriceDisplay) > getNumericDiscount(item.priceDisplay) ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ color: '#F687B3', fontWeight: 600 }}>
+                              Đơn giá: {item.priceDisplay}
+                            </span>
+                            <span style={{ color: 'var(--text-light)', textDecoration: 'line-through', fontSize: '11px' }}>
+                              {item.oldPriceDisplay}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-light)' }}>
+                            Đơn giá: {item.priceDisplay}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 700 }}>x{item.quantity}</div>
-                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', marginTop: '4px' }}>{item.subtotalDisplay || item.priceDisplay}</div>
+                      {item.isFlashSale ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: '4px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 800, color: '#F687B3' }}>
+                            {(getNumericDiscount(item.subtotalDisplay) - getNumericDiscount(item.flashSaleDiscountAmountDisplay)).toLocaleString('vi-VN')}đ
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-light)', textDecoration: 'line-through' }}>
+                            {(getNumericDiscount(item.oldPriceDisplay) * item.quantity).toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
+                      ) : getNumericDiscount(item.oldPriceDisplay) > getNumericDiscount(item.priceDisplay) ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: '4px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff' }}>
+                            {item.subtotalDisplay}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-light)', textDecoration: 'line-through' }}>
+                            {(getNumericDiscount(item.oldPriceDisplay) * item.quantity).toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', marginTop: '4px' }}>
+                          {item.subtotalDisplay || item.priceDisplay}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1013,6 +1258,18 @@ const OrderDetailView: React.FC<{ orderId: string }> = ({ orderId }) => {
                   <span>Phí giao hàng (GHN):</span>
                   <span style={{ fontWeight: 600, color: '#63B3ED' }}>{orderDetail.shippingFeeDisplay}</span>
                 </div>
+                {totalFlashSaleDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#F687B3' }}>
+                    <span>Giảm giá Flash Sale:</span>
+                    <span style={{ fontWeight: 600 }}>-{totalFlashSaleDiscount.toLocaleString('vi-VN')}đ</span>
+                  </div>
+                )}
+                {orderDetail.voucherCode && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#FC8181' }}>
+                    <span>Voucher ({orderDetail.voucherCode}):</span>
+                    <span style={{ fontWeight: 600 }}>-{orderDetail.voucherDiscountAmountDisplay}</span>
+                  </div>
+                )}
                 <div style={{ height: '1px', background: '#2a2a2e', margin: '2px 0' }}></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '17px', fontWeight: 800 }}>
                   <span style={{ color: '#ffffff' }}>Tổng cộng:</span>
@@ -1532,7 +1789,7 @@ export const Orders: React.FC = () => {
           border: 2px solid var(--border);
           border-radius: 10px;
           padding: 0 16px;
-          color: #F687B3;
+          color: var(--text-light);
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
@@ -1540,6 +1797,7 @@ export const Orders: React.FC = () => {
           transition: var(--transition);
         }
         .custom-dropdown-header.active {
+          color: #F687B3 !important;
           border-color: #4a4a4f;
         }
         .custom-dropdown-header .arrow-icon {

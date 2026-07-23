@@ -711,16 +711,19 @@ export const ProductForm: React.FC = () => {
         .btn-save-custom {
           background-color: var(--primary);
           color: #fff;
-          border-radius: 8px;
-          padding: 10px 24px;
+          border-radius: 8px !important;
+          padding: 0 24px !important;
           font-weight: 600;
-          font-size: 14px;
-          display: inline-flex;
+          font-size: 13.5px !important;
+          display: inline-flex !important;
           align-items: center;
+          justify-content: center;
           gap: 8px;
           border: none;
           cursor: pointer;
           transition: var(--transition);
+          height: 42px !important;
+          min-width: 160px;
         }
         .btn-save-custom:hover:not(:disabled) {
           background-color: var(--primary-hover);
@@ -1292,7 +1295,7 @@ export const ProductForm: React.FC = () => {
             ) : (
               <TbDeviceFloppy />
             )}
-            {submitting ? 'Đang lưu...' : 'Lưu thông tin'}
+            {submitting ? 'Đang lưu' : 'Lưu thông tin'}
           </button>
         </div>
       </form>

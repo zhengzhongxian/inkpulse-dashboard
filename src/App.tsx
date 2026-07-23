@@ -12,6 +12,9 @@ import ProductForm from './pages/ProductForm';
 import Customers from './pages/Customers';
 import Staff from './pages/Staff';
 import Vouchers from './pages/Vouchers';
+import { VoucherForm } from './pages/VoucherForm';
+import FlashSales from './pages/FlashSales';
+import FlashSaleForm from './pages/FlashSaleForm';
 import Reviews from './pages/Reviews';
 import Posts from './pages/Posts';
 import Categories from './pages/Categories';
@@ -83,6 +86,11 @@ function App() {
             <Route path="/customers" element={<Customers />} />
             <Route path="/staff" element={<Staff />} />
             <Route path="/vouchers" element={<Vouchers />} />
+            <Route path="/vouchers/new" element={<VoucherForm />} />
+            <Route path="/vouchers/edit/:id" element={<VoucherForm />} />
+            <Route path="/flash-sales" element={<FlashSales />} />
+            <Route path="/flash-sales/new" element={<FlashSaleForm />} />
+            <Route path="/flash-sales/edit/:id" element={<FlashSaleForm />} />
             <Route path="/reviews" element={<Reviews />} />
             <Route path="/posts" element={<Posts />} />
             <Route path="/categories" element={<Categories />} />

@@ -728,18 +728,20 @@ export default function EditionForm() {
         .btn-add-custom {
           background-color: var(--primary);
           color: #fff;
-          border-radius: 10px;
+          border-radius: 8px !important;
           align-items: center;
+          justify-content: center;
           gap: 8px;
-          padding: 10px 24px;
+          padding: 0 24px !important;
           font-weight: 600;
-          display: inline-flex;
+          display: inline-flex !important;
           cursor: pointer;
-          font-size: 14.5px;
+          font-size: 13.5px !important;
           transition: var(--transition);
-          height: 42px;
+          height: 42px !important;
           border: none;
           outline: none;
+          min-width: 160px;
         }
         .btn-add-custom:hover {
           background-color: var(--primary-hover);
@@ -784,22 +786,24 @@ export default function EditionForm() {
           border-color: #F687B3 !important;
         }
         .btn-delete-custom {
-          display: inline-flex;
+          display: inline-flex !important;
           align-items: center;
           justify-content: center;
-          height: 42px;
-          padding: 0 20px;
+          height: 42px !important;
+          padding: 0 24px !important;
           border: 1px solid #2d2d30;
           background-color: transparent;
           color: var(--text-light);
           font-weight: 600;
-          font-size: 13.5px;
-          border-radius: 8px;
+          font-size: 13.5px !important;
+          border-radius: 8px !important;
           cursor: pointer;
           transition: all 0.2s ease;
           user-select: none;
           gap: 6px;
+          min-width: 160px;
         }
+
         .btn-delete-custom:hover {
           color: #ef4444 !important;
           border-color: #ef4444 !important;
@@ -1682,7 +1686,7 @@ export default function EditionForm() {
             ) : (
               <TbDeviceFloppy />
             )}
-            {submitting ? 'Đang lưu...' : 'Lưu thông tin'}
+            {submitting ? 'Đang lưu' : 'Lưu thông tin'}
           </button>
         </div>
       </form>
