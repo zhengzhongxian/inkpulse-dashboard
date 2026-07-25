@@ -108,10 +108,11 @@ export const removeFlashSaleItemsBatchApi = (flashSaleId: string, data: { itemId
   return authClient.delete<any>(`/flash-sales/${flashSaleId}/items/batch`, { data });
 };
 
-export const updateFlashSaleItemApi = (flashSaleId: string, itemId: string, data: { discountAmount?: number; flashSaleStock?: number; }) => {
+export const updateFlashSaleItemApi = (flashSaleId: string, itemId: string, data: { discountAmount?: number; flashSaleStock?: number; soldCount?: number; }) => {
   return authClient.put<any>(`/flash-sales/${flashSaleId}/items/${itemId}`, data);
 };
 
-export const updateFlashSaleItemsBatchApi = (flashSaleId: string, data: { items: Array<{ flashSaleItemId: string; discountAmount?: number; flashSaleStock?: number; }> }) => {
+export const updateFlashSaleItemsBatchApi = (flashSaleId: string, data: { items: Array<{ flashSaleItemId: string; discountAmount?: number; flashSaleStock?: number; soldCount?: number; }> }) => {
   return authClient.put<any>(`/flash-sales/${flashSaleId}/items/batch`, data);
 };
+

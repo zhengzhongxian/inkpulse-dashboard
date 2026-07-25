@@ -8,7 +8,7 @@ import type {
   BookResponse,
   CategoryResponse
 } from '../api/books';
-import { TbSearch, TbChevronDown, TbBookmarkPlus, TbChevronLeft, TbChevronRight, TbArrowNarrowUp, TbArrowNarrowDown } from 'react-icons/tb';
+import { TbSearch, TbChevronDown, TbBookmarkPlus, TbChevronLeft, TbChevronRight, TbArrowNarrowUp, TbArrowNarrowDown, TbAdjustments, TbRefresh } from 'react-icons/tb';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
 import { PAGE_SIZE } from '../utils/constants';
@@ -48,6 +48,7 @@ export const Products: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [isActiveDropdownOpen, setIsActiveDropdownOpen] = useState(false);
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -491,60 +492,21 @@ export const Products: React.FC = () => {
 
       {/* Filters bar */}
       <div className="filters-row" style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div className="search-wrap-custom">
+        <div className="search-wrap-custom" style={{ flex: '1 1 300px', minWidth: '260px' }}>
           <input
             type="text"
             className="search-input-custom"
             placeholder="Tìm kiếm theo tựa đề sách, tác giả, mã ISBN..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: '100%' }}
           />
           <button className="search-btn-custom" type="button">
             <TbSearch />
           </button>
         </div>
 
-        {/* Bộ lọc khoảng giá */}
-        <div className="price-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            type="text"
-            className="price-input-custom"
-            placeholder="Giá từ..."
-            value={minPrice}
-            onChange={(e) => {
-              const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-              setMinPrice(formatted);
-            }}
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
-          <input
-            type="text"
-            className="price-input-custom"
-            placeholder="đến..."
-            value={maxPrice}
-            onChange={(e) => {
-              const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-              setMaxPrice(formatted);
-            }}
-          />
-        </div>
-
-        {/* Bộ lọc khoảng ngày tạo */}
-        <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CustomDatePicker
-            value={startDate}
-            onChange={setStartDate}
-            placeholder="Từ ngày..."
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
-          <CustomDatePicker
-            value={endDate}
-            onChange={setEndDate}
-            placeholder="đến..."
-            align="right"
-          />
-        </div>
-
+        {/* Danh mục */}
         <div className="custom-dropdown-container">
           <div
             className={`custom-dropdown-header ${isSelectOpen ? 'active' : ''}`}
@@ -618,7 +580,149 @@ export const Products: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Toggle Advanced Filters Button */}
+        <button
+          type="button"
+          onClick={() => setIsAdvancedFiltersOpen(!isAdvancedFiltersOpen)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: isAdvancedFiltersOpen || Boolean(minPrice || maxPrice || startDate || endDate) ? 'rgba(218, 68, 125, 0.15)' : 'none',
+            border: isAdvancedFiltersOpen || Boolean(minPrice || maxPrice || startDate || endDate) ? '1px solid var(--primary)' : '1px solid #2d2d30',
+            borderRadius: '10px',
+            color: isAdvancedFiltersOpen || Boolean(minPrice || maxPrice || startDate || endDate) ? '#F687B3' : 'var(--text-light)',
+            height: '42px',
+            padding: '0 16px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '13.5px',
+            transition: 'all 0.2s ease',
+            outline: 'none'
+          }}
+        >
+          <TbAdjustments style={{ fontSize: '16px' }} />
+          Bộ lọc nâng cao
+          {Boolean(minPrice || maxPrice || startDate || endDate) && (
+            <span style={{
+              background: '#DA447D',
+              color: '#fff',
+              borderRadius: '50%',
+              width: '18px',
+              height: '18px',
+              fontSize: '11px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: '2px'
+            }}>
+              {[
+                Boolean(minPrice || maxPrice),
+                Boolean(startDate || endDate)
+              ].filter(Boolean).length}
+            </span>
+          )}
+        </button>
+
+        {/* Reset Filters Button */}
+        {(searchTerm || categoryFilter !== 'ALL' || activeFilter !== 'ALL' || minPrice || maxPrice || startDate || endDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm('');
+              setCategoryFilter('ALL');
+              setActiveFilter('ALL');
+              setMinPrice('');
+              setMaxPrice('');
+              setStartDate('');
+              setEndDate('');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: 'none',
+              color: '#f687b3',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '13.5px',
+              height: '42px'
+            }}
+          >
+            <TbRefresh style={{ fontSize: '15px' }} />
+            Đặt lại
+          </button>
+        )}
       </div>
+
+      {/* Advanced Collapsible Filters - Flat & Seamless Layout */}
+      {isAdvancedFiltersOpen && (
+        <div style={{
+          marginBottom: '24px',
+          marginTop: '16px',
+          paddingTop: '20px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px 32px', alignItems: 'flex-start' }}>
+
+            {/* Bộ lọc khoảng giá */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '320px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>Khoảng giá bán (VNĐ)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="price-input-custom"
+                  placeholder="Giá từ..."
+                  value={minPrice}
+                  onChange={(e) => {
+                    const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    setMinPrice(formatted);
+                  }}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '42px' }}>&ndash;</span>
+                <input
+                  type="text"
+                  className="price-input-custom"
+                  placeholder="đến..."
+                  value={maxPrice}
+                  onChange={(e) => {
+                    const formatted = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    setMaxPrice(formatted);
+                  }}
+                  style={{ flex: 1 }}
+                />
+              </div>
+            </div>
+
+            {/* Bộ lọc khoảng ngày tạo */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '320px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>Khoảng ngày nhập kho</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ flex: 1 }}>
+                  <CustomDatePicker
+                    value={startDate}
+                    onChange={setStartDate}
+                    placeholder="Từ ngày..."
+                  />
+                </div>
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '42px' }}>&ndash;</span>
+                <div style={{ flex: 1 }}>
+                  <CustomDatePicker
+                    value={endDate}
+                    onChange={setEndDate}
+                    placeholder="đến..."
+                    align="right"
+                  />
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Main product table */}
       <div className="table-container" style={{ position: 'relative' }}>

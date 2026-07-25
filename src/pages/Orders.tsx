@@ -413,19 +413,23 @@ const OrderListView: React.FC<{ navigate: ReturnType<typeof useNavigate> }> = ({
           {/* 1. Khoảng ngày đặt */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#F687B3' }}>Khoảng ngày đặt hàng</span>
-            <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CustomDatePicker
-                value={startDate}
-                onChange={setStartDate}
-                placeholder="Từ ngày..."
-              />
-              <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
-              <CustomDatePicker
-                value={endDate}
-                onChange={setEndDate}
-                placeholder="đến..."
-                align="right"
-              />
+            <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '310px' }}>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <CustomDatePicker
+                  value={startDate}
+                  onChange={setStartDate}
+                  placeholder="Từ ngày..."
+                />
+              </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '42px' }}>&ndash;</span>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <CustomDatePicker
+                  value={endDate}
+                  onChange={setEndDate}
+                  placeholder="đến..."
+                  align="right"
+                />
+              </div>
             </div>
           </div>
 

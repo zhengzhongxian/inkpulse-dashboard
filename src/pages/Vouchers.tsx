@@ -650,101 +650,19 @@ export const Vouchers: React.FC = () => {
       {/* Filter Options (Flat layout, no container panels) */}
       <div className="filters-row" style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
 
-        {/* Search Input matching books search bar style */}
-        <div className="search-wrap-custom">
+        {/* Search Input matching books search bar style - Expanded width */}
+        <div className="search-wrap-custom" style={{ flex: '1 1 300px', minWidth: '260px' }}>
           <input
             type="text"
             className="search-input-custom"
             placeholder="Tìm kiếm mã code hoặc mô tả khuyến mãi..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: '100%' }}
           />
           <button className="search-btn-custom" type="button">
             <TbSearch />
           </button>
-        </div>
-
-        {/* Discount Type Dropdown */}
-        <div className="custom-dropdown-container">
-          <div
-            className={`custom-dropdown-header ${isDiscountDropdownOpen ? 'open' : ''} ${filterDiscountType !== 'ALL' ? 'active' : ''}`}
-            onClick={() => setIsDiscountDropdownOpen(!isDiscountDropdownOpen)}
-          >
-            <span>{filterDiscountType === 'ALL' ? 'Tất cả loại giảm' : filterDiscountType === 'PERCENTAGE' ? '%' : 'VNĐ'}</span>
-            <TbChevronDown className={`arrow-icon ${isDiscountDropdownOpen ? 'open' : ''}`} />
-          </div>
-          {isDiscountDropdownOpen && (
-            <div className="custom-dropdown-menu">
-              <div
-                className={`custom-dropdown-item ${filterDiscountType === 'ALL' ? 'selected' : ''}`}
-                onClick={() => { setFilterDiscountType('ALL'); setIsDiscountDropdownOpen(false); }}
-              >
-                Tất cả loại giảm
-              </div>
-              <div
-                className={`custom-dropdown-item ${filterDiscountType === 'PERCENTAGE' ? 'selected' : ''}`}
-                onClick={() => { setFilterDiscountType('PERCENTAGE'); setIsDiscountDropdownOpen(false); }}
-              >
-                Giảm theo phần trăm (%)
-              </div>
-              <div
-                className={`custom-dropdown-item ${filterDiscountType === 'FIXED_AMOUNT' ? 'selected' : ''}`}
-                onClick={() => { setFilterDiscountType('FIXED_AMOUNT'); setIsDiscountDropdownOpen(false); }}
-              >
-                Giảm theo số tiền (VNĐ)
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Target Type Dropdown */}
-        <div className="custom-dropdown-container">
-          <div
-            className={`custom-dropdown-header ${isTargetDropdownOpen ? 'open' : ''} ${filterTargetType !== 'ALL_TYPES' ? 'active' : ''}`}
-            onClick={() => setIsTargetDropdownOpen(!isTargetDropdownOpen)}
-          >
-            <span>
-              {filterTargetType === 'ALL_TYPES' ? 'Tất cả đối tượng' :
-                filterTargetType === 'ALL' ? 'Đơn hàng Tổng' :
-                  filterTargetType === 'CATEGORY' ? 'Danh mục sản phẩm' :
-                    filterTargetType === 'BOOK' ? 'Sách' : 'Phiên bản sách'}
-            </span>
-            <TbChevronDown className={`arrow-icon ${isTargetDropdownOpen ? 'open' : ''}`} />
-          </div>
-          {isTargetDropdownOpen && (
-            <div className="custom-dropdown-menu">
-              <div
-                className={`custom-dropdown-item ${filterTargetType === 'ALL_TYPES' ? 'selected' : ''}`}
-                onClick={() => { setFilterTargetType('ALL_TYPES'); setIsTargetDropdownOpen(false); }}
-              >
-                Tất cả đối tượng
-              </div>
-              <div
-                className={`custom-dropdown-item ${filterTargetType === 'ALL' ? 'selected' : ''}`}
-                onClick={() => { setFilterTargetType('ALL'); setIsTargetDropdownOpen(false); }}
-              >
-                Đơn hàng Tổng
-              </div>
-              <div
-                className={`custom-dropdown-item ${filterTargetType === 'CATEGORY' ? 'selected' : ''}`}
-                onClick={() => { setFilterTargetType('CATEGORY'); setIsTargetDropdownOpen(false); }}
-              >
-                Danh mục sản phẩm
-              </div>
-              <div
-                className={`custom-dropdown-item ${filterTargetType === 'BOOK' ? 'selected' : ''}`}
-                onClick={() => { setFilterTargetType('BOOK'); setIsTargetDropdownOpen(false); }}
-              >
-                Sách
-              </div>
-              <div
-                className={`custom-dropdown-item ${filterTargetType === 'EDITION' ? 'selected' : ''}`}
-                onClick={() => { setFilterTargetType('EDITION'); setIsTargetDropdownOpen(false); }}
-              >
-                Phiên bản sách
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Active Status Dropdown */}
@@ -780,25 +698,6 @@ export const Vouchers: React.FC = () => {
           )}
         </div>
 
-        {/* Coin Cost Range filter */}
-        <div className="coin-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            type="number"
-            className="range-input-custom"
-            placeholder="Xu từ..."
-            value={minCoinCost}
-            onChange={(e) => setMinCoinCost(e.target.value)}
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
-          <input
-            type="number"
-            className="range-input-custom"
-            placeholder="đến..."
-            value={maxCoinCost}
-            onChange={(e) => setMaxCoinCost(e.target.value)}
-          />
-        </div>
-
         {/* Toggle Advanced Filters Button */}
         <button
           type="button"
@@ -807,10 +706,10 @@ export const Vouchers: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            background: isAdvancedFiltersOpen ? 'rgba(218, 68, 125, 0.15)' : 'none',
-            border: isAdvancedFiltersOpen ? '1px solid var(--primary)' : '1px solid #2d2d30',
+            background: isAdvancedFiltersOpen || (filterDiscountType !== 'ALL' || filterTargetType !== 'ALL_TYPES' || minCoinCost || maxCoinCost || startDateFrom || startDateTo || endDateFrom || endDateTo || createdFrom || createdTo) ? 'rgba(218, 68, 125, 0.15)' : 'none',
+            border: isAdvancedFiltersOpen || (filterDiscountType !== 'ALL' || filterTargetType !== 'ALL_TYPES' || minCoinCost || maxCoinCost || startDateFrom || startDateTo || endDateFrom || endDateTo || createdFrom || createdTo) ? '1px solid var(--primary)' : '1px solid #2d2d30',
             borderRadius: '10px',
-            color: isAdvancedFiltersOpen ? '#F687B3' : 'var(--text-light)',
+            color: isAdvancedFiltersOpen || (filterDiscountType !== 'ALL' || filterTargetType !== 'ALL_TYPES' || minCoinCost || maxCoinCost || startDateFrom || startDateTo || endDateFrom || endDateTo || createdFrom || createdTo) ? '#F687B3' : 'var(--text-light)',
             height: '42px',
             padding: '0 16px',
             cursor: 'pointer',
@@ -822,6 +721,29 @@ export const Vouchers: React.FC = () => {
         >
           <TbAdjustments style={{ fontSize: '16px' }} />
           Bộ lọc nâng cao
+          {(filterDiscountType !== 'ALL' || filterTargetType !== 'ALL_TYPES' || minCoinCost || maxCoinCost || startDateFrom || startDateTo || endDateFrom || endDateTo || createdFrom || createdTo) && (
+            <span style={{
+              background: '#DA447D',
+              color: '#fff',
+              borderRadius: '50%',
+              width: '18px',
+              height: '18px',
+              fontSize: '11px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: '2px'
+            }}>
+              {[
+                filterDiscountType !== 'ALL',
+                filterTargetType !== 'ALL_TYPES',
+                Boolean(minCoinCost || maxCoinCost),
+                Boolean(startDateFrom || startDateTo),
+                Boolean(endDateFrom || endDateTo),
+                Boolean(createdFrom || createdTo)
+              ].filter(Boolean).length}
+            </span>
+          )}
         </button>
 
         {/* Reset Filters Button */}
@@ -861,19 +783,137 @@ export const Vouchers: React.FC = () => {
         )}
       </div>
 
-      {/* Advanced Collapsible Date Filters */}
+      {/* Advanced Collapsible Filters - Flat & Seamless Layout */}
       {isAdvancedFiltersOpen && (
         <div style={{
           marginBottom: '24px',
-          marginTop: '8px'
+          marginTop: '16px',
+          paddingTop: '20px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)'
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px 32px', alignItems: 'flex-start' }}>
+
+            {/* Discount Type Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '260px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>Loại giảm giá</label>
+              <div className="custom-dropdown-container" style={{ width: '100%' }}>
+                <div
+                  className={`custom-dropdown-header ${isDiscountDropdownOpen ? 'open' : ''} ${filterDiscountType !== 'ALL' ? 'active' : ''}`}
+                  onClick={() => setIsDiscountDropdownOpen(!isDiscountDropdownOpen)}
+                  style={{ width: '100%', justifyContent: 'space-between' }}
+                >
+                  <span>{filterDiscountType === 'ALL' ? 'Tất cả loại giảm' : filterDiscountType === 'PERCENTAGE' ? 'Giảm theo phần trăm (%)' : 'Giảm theo số tiền (VNĐ)'}</span>
+                  <TbChevronDown className={`arrow-icon ${isDiscountDropdownOpen ? 'open' : ''}`} />
+                </div>
+                {isDiscountDropdownOpen && (
+                  <div className="custom-dropdown-menu" style={{ width: '100%' }}>
+                    <div
+                      className={`custom-dropdown-item ${filterDiscountType === 'ALL' ? 'selected' : ''}`}
+                      onClick={() => { setFilterDiscountType('ALL'); setIsDiscountDropdownOpen(false); }}
+                    >
+                      Tất cả loại giảm
+                    </div>
+                    <div
+                      className={`custom-dropdown-item ${filterDiscountType === 'PERCENTAGE' ? 'selected' : ''}`}
+                      onClick={() => { setFilterDiscountType('PERCENTAGE'); setIsDiscountDropdownOpen(false); }}
+                    >
+                      Giảm theo phần trăm (%)
+                    </div>
+                    <div
+                      className={`custom-dropdown-item ${filterDiscountType === 'FIXED_AMOUNT' ? 'selected' : ''}`}
+                      onClick={() => { setFilterDiscountType('FIXED_AMOUNT'); setIsDiscountDropdownOpen(false); }}
+                    >
+                      Giảm theo số tiền (VNĐ)
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Target Type Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '260px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>Đối tượng áp dụng</label>
+              <div className="custom-dropdown-container" style={{ width: '100%' }}>
+                <div
+                  className={`custom-dropdown-header ${isTargetDropdownOpen ? 'open' : ''} ${filterTargetType !== 'ALL_TYPES' ? 'active' : ''}`}
+                  onClick={() => setIsTargetDropdownOpen(!isTargetDropdownOpen)}
+                  style={{ width: '100%', justifyContent: 'space-between' }}
+                >
+                  <span>
+                    {filterTargetType === 'ALL_TYPES' ? 'Tất cả đối tượng' :
+                      filterTargetType === 'ALL' ? 'Đơn hàng Tổng' :
+                        filterTargetType === 'CATEGORY' ? 'Danh mục sản phẩm' :
+                          filterTargetType === 'BOOK' ? 'Sách' : 'Phiên bản sách'}
+                  </span>
+                  <TbChevronDown className={`arrow-icon ${isTargetDropdownOpen ? 'open' : ''}`} />
+                </div>
+                {isTargetDropdownOpen && (
+                  <div className="custom-dropdown-menu" style={{ width: '100%' }}>
+                    <div
+                      className={`custom-dropdown-item ${filterTargetType === 'ALL_TYPES' ? 'selected' : ''}`}
+                      onClick={() => { setFilterTargetType('ALL_TYPES'); setIsTargetDropdownOpen(false); }}
+                    >
+                      Tất cả đối tượng
+                    </div>
+                    <div
+                      className={`custom-dropdown-item ${filterTargetType === 'ALL' ? 'selected' : ''}`}
+                      onClick={() => { setFilterTargetType('ALL'); setIsTargetDropdownOpen(false); }}
+                    >
+                      Đơn hàng Tổng
+                    </div>
+                    <div
+                      className={`custom-dropdown-item ${filterTargetType === 'CATEGORY' ? 'selected' : ''}`}
+                      onClick={() => { setFilterTargetType('CATEGORY'); setIsTargetDropdownOpen(false); }}
+                    >
+                      Danh mục sản phẩm
+                    </div>
+                    <div
+                      className={`custom-dropdown-item ${filterTargetType === 'BOOK' ? 'selected' : ''}`}
+                      onClick={() => { setFilterTargetType('BOOK'); setIsTargetDropdownOpen(false); }}
+                    >
+                      Sách
+                    </div>
+                    <div
+                      className={`custom-dropdown-item ${filterTargetType === 'EDITION' ? 'selected' : ''}`}
+                      onClick={() => { setFilterTargetType('EDITION'); setIsTargetDropdownOpen(false); }}
+                    >
+                      Phiên bản sách
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Coin Cost Range filter */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '320px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>Phí đổi xu</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="number"
+                  className="range-input-custom"
+                  placeholder="Xu từ..."
+                  value={minCoinCost}
+                  onChange={(e) => setMinCoinCost(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '42px' }}>&ndash;</span>
+                <input
+                  type="number"
+                  className="range-input-custom"
+                  placeholder="đến..."
+                  value={maxCoinCost}
+                  onChange={(e) => setMaxCoinCost(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+              </div>
+            </div>
+
             {/* Khoảng ngày bắt đầu */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '360px' }}>
               <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>
                 Khoảng ngày bắt đầu có hiệu lực
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ flex: 1 }}>
                   <CustomDateTimePicker
                     value={startDateFrom}
@@ -881,12 +921,12 @@ export const Vouchers: React.FC = () => {
                     placeholder="Từ ngày..."
                   />
                 </div>
-                <span style={{ color: 'var(--text-muted)' }}>&mdash;</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '42px' }}>&ndash;</span>
                 <div style={{ flex: 1 }}>
                   <CustomDateTimePicker
                     value={startDateTo}
                     onChange={setStartDateTo}
-                    placeholder="Đến ngày..."
+                    placeholder="đến..."
                     align="right"
                   />
                 </div>
@@ -894,11 +934,11 @@ export const Vouchers: React.FC = () => {
             </div>
 
             {/* Khoảng ngày kết thúc */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '360px' }}>
               <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>
                 Khoảng ngày kết thúc thời hạn
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ flex: 1 }}>
                   <CustomDateTimePicker
                     value={endDateFrom}
@@ -906,12 +946,12 @@ export const Vouchers: React.FC = () => {
                     placeholder="Từ ngày..."
                   />
                 </div>
-                <span style={{ color: 'var(--text-muted)' }}>&mdash;</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '42px' }}>&ndash;</span>
                 <div style={{ flex: 1 }}>
                   <CustomDateTimePicker
                     value={endDateTo}
                     onChange={setEndDateTo}
-                    placeholder="Đến ngày..."
+                    placeholder="đến..."
                     align="right"
                   />
                 </div>
@@ -919,11 +959,11 @@ export const Vouchers: React.FC = () => {
             </div>
 
             {/* Khoảng ngày tạo */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '360px' }}>
               <label style={{ fontSize: '13px', fontWeight: '600', color: '#F687B3' }}>
                 Khoảng ngày tạo mã
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ flex: 1 }}>
                   <CustomDateTimePicker
                     value={createdFrom}
@@ -931,17 +971,18 @@ export const Vouchers: React.FC = () => {
                     placeholder="Từ ngày..."
                   />
                 </div>
-                <span style={{ color: 'var(--text-muted)' }}>&mdash;</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '42px' }}>&ndash;</span>
                 <div style={{ flex: 1 }}>
                   <CustomDateTimePicker
                     value={createdTo}
                     onChange={setCreatedTo}
-                    placeholder="Đến ngày..."
+                    placeholder="đến..."
                     align="right"
                   />
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       )}

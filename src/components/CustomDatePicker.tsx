@@ -6,16 +6,30 @@ interface CustomDatePickerProps {
   onChange: (date: string) => void;
   placeholder: string;
   align?: 'left' | 'right';
+  width?: string;
 }
 
 export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   value,
   onChange,
   placeholder,
-  align = 'left'
+  align = 'left',
+  width
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleToggle = () => {
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Enterprise Floating-UI logic: pop upward ONLY if space below is insufficient (< 280px) AND space above is greater
+      setOpenUpward(spaceBelow < 280 && spaceAbove > spaceBelow);
+    }
+    setIsOpen(!isOpen);
+  };
 
   // Parse initial date or default to current date
   const initialDate = value ? new Date(value) : new Date();
@@ -71,9 +85,10 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   };
 
   const handleSelectDay = (day: number) => {
-    const m = String(viewMonth + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    onChange(`${viewYear}-${m}-${d}`);
+    const monthStr = String(viewMonth + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const dateStr = `${viewYear}-${monthStr}-${dayStr}`;
+    onChange(dateStr);
     setIsOpen(false);
   };
 
@@ -96,10 +111,10 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   }
 
   return (
-    <div className="custom-datepicker-container" ref={containerRef} style={{ position: 'relative', width: '170px', userSelect: 'none' }}>
+    <div className="custom-datepicker-container" ref={containerRef} style={{ position: 'relative', width: width || '100%', userSelect: 'none' }}>
       <div
         className={`custom-datepicker-trigger ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -117,7 +132,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           boxSizing: 'border-box'
         }}
       >
-        <span>{formatDateDisplay(value)}</span>
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDateDisplay(value)}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {value && (
             <button
@@ -155,17 +170,19 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           className="custom-datepicker-dropdown"
           style={{
             position: 'absolute',
-            top: 'calc(100% + 6px)',
+            top: openUpward ? 'auto' : 'calc(100% + 6px)',
+            bottom: openUpward ? 'calc(100% + 6px)' : 'auto',
             left: align === 'right' ? 'auto' : '0',
             right: align === 'right' ? '0' : 'auto',
             width: '280px',
-            zIndex: 150,
+            zIndex: 3000,
             backgroundColor: '#16161a',
             border: '1px solid #2a2a2e',
             borderRadius: '10px',
             padding: '16px',
-            marginTop: '4px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+            marginTop: openUpward ? '0' : '4px',
+            marginBottom: openUpward ? '4px' : '0',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.7)',
             boxSizing: 'border-box'
           }}
         >

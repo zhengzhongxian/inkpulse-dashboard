@@ -22,7 +22,9 @@ interface FlashSaleFormItem {
   originalPrice: number;
   discountAmount: number;
   flashSaleStock: number;
+  soldCount?: number;
 }
+
 
 const FlashSaleForm: React.FC = () => {
   const navigate = useNavigate();
@@ -99,8 +101,10 @@ const FlashSaleForm: React.FC = () => {
             editionTitle: x.editionTitle || '',
             originalPrice: x.originalPrice,
             discountAmount: x.discountAmount,
-            flashSaleStock: x.flashSaleStock
+            flashSaleStock: x.flashSaleStock,
+            soldCount: x.soldCount
           }));
+
           setItems(list);
         }
       } catch (err) {
@@ -190,7 +194,7 @@ const FlashSaleForm: React.FC = () => {
   };
 
   // Modify local fields values
-  const handleUpdateItemState = (index: number, field: 'discountAmount' | 'flashSaleStock', value: string) => {
+  const handleUpdateItemState = (index: number, field: 'discountAmount' | 'flashSaleStock' | 'soldCount', value: string) => {
     setItems(prev => prev.map((item, i) => {
       if (i === index) {
         const val = parseFloat(value) || 0;
@@ -216,8 +220,10 @@ const FlashSaleForm: React.FC = () => {
     try {
       await updateFlashSaleItemApi(id!, item.flashSaleItemId, {
         discountAmount: item.discountAmount,
-        flashSaleStock: item.flashSaleStock
+        flashSaleStock: item.flashSaleStock,
+        soldCount: item.soldCount
       });
+
       toast.success(`Đã lưu thay đổi sản phẩm`);
     } catch (err) {
       toast.error('Cập nhật sản phẩm thất bại!');
@@ -817,9 +823,10 @@ const FlashSaleForm: React.FC = () => {
                   <thead>
                     <tr>
                       <th>Sản phẩm / Phiên bản</th>
-                      <th style={{ width: '130px' }}>Giá gốc (đ)</th>
-                      <th style={{ width: '150px' }}>Giảm giá (đ)</th>
-                      <th style={{ width: '120px' }}>Tồn kho Flash</th>
+                      <th style={{ width: '120px' }}>Giá gốc (đ)</th>
+                      <th style={{ width: '140px' }}>Giảm giá (đ)</th>
+                      <th style={{ width: '110px' }}>Tồn kho</th>
+                      <th style={{ width: '110px' }}>Đã bán</th>
                       <th style={{ width: '60px', textAlign: 'center' }}>Xóa</th>
                     </tr>
                   </thead>
@@ -854,6 +861,17 @@ const FlashSaleForm: React.FC = () => {
                               style={{ height: '36px', width: '100px' }}
                             />
                           </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="form-control"
+                              value={item.soldCount ?? 0}
+                              onChange={(e) => handleUpdateItemState(index, 'soldCount', e.target.value)}
+                              onBlur={() => handleSaveItemUpdates(item)}
+                              style={{ height: '36px', width: '100px' }}
+                            />
+                          </td>
+
                           <td style={{ textAlign: 'center' }}>
                             <button
                               type="button"

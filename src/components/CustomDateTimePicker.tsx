@@ -6,49 +6,52 @@ interface CustomDateTimePickerProps {
   onChange: (dateTime: string) => void;
   placeholder: string;
   align?: 'left' | 'right';
+  width?: string;
 }
 
 export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
   value,
   onChange,
   placeholder,
-  align = 'left'
+  align = 'left',
+  width
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Parse initial date-time: expected format "YYYY-MM-DDTHH:mm"
-  // Fallback to current date-time
-  const parseValue = (val: string) => {
-    if (!val) return { dateStr: '', hour: 0, minute: 0 };
-    const parts = val.split('T');
-    const dateStr = parts[0] || '';
-    const timeStr = parts[1] || '00:00';
-    const [h, m] = timeStr.split(':').map(Number);
-    return { dateStr, hour: isNaN(h) ? 0 : h, minute: isNaN(m) ? 0 : m };
+  const handleToggle = () => {
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Enterprise Floating-UI logic: pop upward ONLY if space below is insufficient (< 300px) AND space above is greater
+      setOpenUpward(spaceBelow < 300 && spaceAbove > spaceBelow);
+    }
+    setIsOpen(!isOpen);
   };
 
-  const { dateStr, hour, minute } = parseValue(value);
+  // Parse initial date or default to current date
+  const parseValue = (val: string) => {
+    if (!val) return new Date();
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
 
-  const initialDate = dateStr ? new Date(dateStr) : new Date();
+  const initialDate = parseValue(value);
   const [viewMonth, setViewMonth] = useState(initialDate.getMonth());
   const [viewYear, setViewYear] = useState(initialDate.getFullYear());
-  const [selectedDate, setSelectedDate] = useState(dateStr);
-  const [selectedHour, setSelectedHour] = useState(hour);
-  const [selectedMinute, setSelectedMinute] = useState(minute);
+  const [selectedHour, setSelectedHour] = useState(value ? initialDate.getHours() : 0);
+  const [selectedMinute, setSelectedMinute] = useState(value ? initialDate.getMinutes() : 0);
 
   useEffect(() => {
-    const parsed = parseValue(value);
-    if (parsed.dateStr) {
-      setSelectedDate(parsed.dateStr);
-      const d = new Date(parsed.dateStr);
+    if (value) {
+      const d = parseValue(value);
       setViewMonth(d.getMonth());
       setViewYear(d.getFullYear());
-    } else {
-      setSelectedDate('');
+      setSelectedHour(d.getHours());
+      setSelectedMinute(d.getMinutes());
     }
-    setSelectedHour(parsed.hour);
-    setSelectedMinute(parsed.minute);
   }, [value]);
 
   // Click outside listener
@@ -91,37 +94,24 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
     }
   };
 
-  const handleSelectDay = (day: number) => {
-    const m = String(viewMonth + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    const newDateStr = `${viewYear}-${m}-${d}`;
-    setSelectedDate(newDateStr);
-    
-    // Update value reactively
-    const hr = String(selectedHour).padStart(2, '0');
-    const min = String(selectedMinute).padStart(2, '0');
-    onChange(`${newDateStr}T${hr}:${min}`);
+  const handleSelectDate = (day: number) => {
+    const d = new Date(viewYear, viewMonth, day, selectedHour, selectedMinute);
+    // Local ISO string without timezone offset conversion issues
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const isoLocal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(selectedHour)}:${pad(selectedMinute)}:00`;
+    onChange(isoLocal);
   };
 
   const handleTimeChange = (h: number, m: number) => {
     setSelectedHour(h);
     setSelectedMinute(m);
-    
-    if (selectedDate) {
-      const hr = String(h).padStart(2, '0');
-      const min = String(m).padStart(2, '0');
-      onChange(`${selectedDate}T${hr}:${min}`);
-    } else {
-      // If no date selected yet, default to today
-      const today = new Date();
-      const yr = today.getFullYear();
-      const mth = String(today.getMonth() + 1).padStart(2, '0');
-      const dy = String(today.getDate()).padStart(2, '0');
-      const hr = String(h).padStart(2, '0');
-      const min = String(m).padStart(2, '0');
-      const newDateStr = `${yr}-${mth}-${dy}`;
-      setSelectedDate(newDateStr);
-      onChange(`${newDateStr}T${hr}:${min}`);
+    if (value) {
+      const d = parseValue(value);
+      d.setHours(h);
+      d.setMinutes(m);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const isoLocal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(h)}:${pad(m)}:00`;
+      onChange(isoLocal);
     }
   };
 
@@ -134,15 +124,13 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
     onChange('');
   };
 
-  const formatDateDisplay = (dateTimeStr: string) => {
-    if (!dateTimeStr) return placeholder;
-    const parts = dateTimeStr.split('T');
-    const dStr = parts[0] || '';
-    const tStr = parts[1] || '00:00';
-    if (!dStr) return placeholder;
-    
-    const [y, m, d] = dStr.split('-');
-    return `${d}/${m}/${y} ${tStr}`;
+  const formatDateDisplay = (val: string) => {
+    if (!val) return placeholder;
+    const d = parseValue(val);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dateStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${dateStr} ${timeStr}`;
   };
 
   const currentYear = new Date().getFullYear();
@@ -152,10 +140,10 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
   }
 
   return (
-    <div className="custom-datetimepicker-container" ref={containerRef} style={{ position: 'relative', width: '210px', userSelect: 'none' }}>
+    <div className="custom-datetimepicker-container" ref={containerRef} style={{ position: 'relative', width: width || '100%', userSelect: 'none' }}>
       <div
         className={`custom-datepicker-trigger ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -173,7 +161,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
           boxSizing: 'border-box'
         }}
       >
-        <span>{formatDateDisplay(value)}</span>
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDateDisplay(value)}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {value && (
             <button
@@ -211,17 +199,19 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
           className="custom-datepicker-dropdown"
           style={{
             position: 'absolute',
-            top: 'calc(100% + 6px)',
+            top: openUpward ? 'auto' : 'calc(100% + 6px)',
+            bottom: openUpward ? 'calc(100% + 6px)' : 'auto',
             left: align === 'right' ? 'auto' : '0',
             right: align === 'right' ? '0' : 'auto',
             width: '280px',
-            zIndex: 150,
+            zIndex: 3000,
             backgroundColor: '#16161a',
             border: '1px solid #2a2a2e',
             borderRadius: '10px',
             padding: '16px',
-            marginTop: '4px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+            marginTop: openUpward ? '0' : '4px',
+            marginBottom: openUpward ? '4px' : '0',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.7)',
             boxSizing: 'border-box'
           }}
         >
@@ -317,15 +307,16 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
             ))}
             {Array.from({ length: daysInMonth }).map((_, idx) => {
               const day = idx + 1;
-              const isSelected = selectedDate &&
-                new Date(selectedDate).getDate() === day &&
-                new Date(selectedDate).getMonth() === viewMonth &&
-                new Date(selectedDate).getFullYear() === viewYear;
+              const dVal = parseValue(value);
+              const isSelected = Boolean(value) &&
+                dVal.getDate() === day &&
+                dVal.getMonth() === viewMonth &&
+                dVal.getFullYear() === viewYear;
 
               return (
                 <div
                   key={day}
-                  onClick={() => handleSelectDay(day)}
+                  onClick={() => handleSelectDate(day)}
                   style={{
                     height: '28px',
                     lineHeight: '28px',

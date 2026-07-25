@@ -372,3 +372,43 @@ button {
   justify-content: center !important;
 }
 
+/* Universal Admin Inputs Focus & Hover Aesthetics */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="datetime-local"],
+textarea,
+select {
+  transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease !important;
+}
+
+input[type="text"]:hover,
+input[type="number"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="search"]:hover,
+input[type="tel"]:hover,
+input[type="datetime-local"]:hover,
+textarea:hover,
+select:hover {
+  border-color: #DA447D !important;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="datetime-local"]:focus,
+textarea:focus,
+select:focus {
+  border-color: #DA447D !important;
+  box-shadow: 0 0 0 3.5px rgba(218, 68, 125, 0.25), 0 2px 10px rgba(218, 68, 125, 0.15) !important;
+  outline: none !important;
+}
+
+

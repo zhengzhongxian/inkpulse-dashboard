@@ -159,13 +159,14 @@ export const Refunds: React.FC = () => {
 
       {/* Filters Bar */}
       <div className="filters-row" style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div className="search-wrap-custom">
+        <div className="search-wrap-custom" style={{ flex: '1 1 280px', minWidth: '240px' }}>
           <input
             type="text"
             className="search-input-custom"
             placeholder="Tìm theo mã đơn hàng..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: '100%' }}
           />
           <button className="search-btn-custom" type="button">
             <TbSearch />
@@ -173,31 +174,36 @@ export const Refunds: React.FC = () => {
         </div>
 
         {/* Bộ lọc khoảng ngày tạo */}
-        <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CustomDatePicker
-            value={startDate}
-            onChange={setStartDate}
-            placeholder="Từ ngày..."
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>&mdash;</span>
-          <CustomDatePicker
-            value={endDate}
-            onChange={setEndDate}
-            placeholder="đến..."
-            align="right"
-          />
+        <div className="date-range-custom" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '310px' }}>
+          <div style={{ flex: 1, minWidth: '140px' }}>
+            <CustomDatePicker
+              value={startDate}
+              onChange={setStartDate}
+              placeholder="Từ ngày..."
+            />
+          </div>
+          <span style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', height: '44px' }}>&ndash;</span>
+          <div style={{ flex: 1, minWidth: '140px' }}>
+            <CustomDatePicker
+              value={endDate}
+              onChange={setEndDate}
+              placeholder="đến..."
+              align="right"
+            />
+          </div>
         </div>
 
-        <div className="custom-dropdown-container">
+        <div className="custom-dropdown-container" style={{ minWidth: '160px' }}>
           <div
             className={`custom-dropdown-header ${isSelectOpen ? 'active' : ''}`}
             onClick={() => setIsSelectOpen(!isSelectOpen)}
+            style={{ width: '100%', justifyContent: 'space-between' }}
           >
             <span>{getStatusText(statusFilter)}</span>
             <TbChevronDown className={`arrow-icon ${isSelectOpen ? 'open' : ''}`} />
           </div>
           {isSelectOpen && (
-            <div className="custom-dropdown-menu">
+            <div className="custom-dropdown-menu" style={{ width: '100%' }}>
               {['ALL', 'PENDING', 'PROCESSING', 'SUCCESS', 'FAILED'].map((st) => (
                 <div
                   key={st}
