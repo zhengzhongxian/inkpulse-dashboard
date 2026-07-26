@@ -77,7 +77,9 @@ a {
   transition: var(--transition);
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   font-family: var(--font);
   background-color: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -88,7 +90,9 @@ input, select, textarea {
   border-radius: var(--radius-sm);
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   border-color: #4a4a4f !important;
   box-shadow: none !important;
   outline: none !important;
@@ -121,7 +125,8 @@ button {
 
 .main-content {
   flex: 1;
-  margin-left: 220px; /* Width of sidebar */
+  margin-left: 220px;
+  /* Width of sidebar */
   padding: 24px;
   background-color: var(--bg-primary);
   display: flex;
@@ -235,7 +240,9 @@ button {
   color: var(--text-muted);
 }
 
-.form-field input, .form-field select, .form-field textarea {
+.form-field input,
+.form-field select,
+.form-field textarea {
   padding: 10px 12px;
   font-size: 14px;
 }
@@ -275,8 +282,15 @@ button {
 
 /* Utility Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fade-in {
@@ -289,7 +303,9 @@ button {
 }
 
 @keyframes btn-spin-key {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Modal Styles */
@@ -313,14 +329,21 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   width: 100%;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   animation: modalFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .modal-header {
@@ -414,5 +437,3 @@ select:focus {
   box-shadow: 0 0 0 3.5px rgba(218, 68, 125, 0.25), 0 2px 10px rgba(218, 68, 125, 0.15) !important;
   outline: none !important;
 }
-
-

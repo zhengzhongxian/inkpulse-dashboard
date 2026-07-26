@@ -1,4 +1,4 @@
-import api from './client';
+import { authClient } from './auth';
 
 export interface BannerEditionItem {
   editionId: string;
@@ -35,29 +35,29 @@ export interface PagedBannersParams {
 }
 
 export const getPagedBannersApi = async (params?: PagedBannersParams) => {
-  return await api.get('/v1/internal/banners', { params });
+  return await authClient.get('/internal/banners', { params });
 };
 
 export const getBannerDetailApi = async (id: string) => {
-  return await api.get(`/v1/internal/banners/${id}`);
+  return await authClient.get(`/internal/banners/${id}`);
 };
 
 export const createBannerApi = async (formData: FormData) => {
-  return await api.post('/v1/internal/banners', formData, {
+  return await authClient.post('/internal/banners', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };
 
 export const updateBannerApi = async (id: string, formData: FormData) => {
-  return await api.put(`/v1/internal/banners/${id}`, formData, {
+  return await authClient.put(`/internal/banners/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };
 
 export const deleteBannerApi = async (id: string) => {
-  return await api.delete(`/v1/internal/banners/${id}`);
+  return await authClient.delete(`/internal/banners/${id}`);
 };
 
 export const toggleBannerStatusApi = async (id: string) => {
-  return await api.patch(`/v1/internal/banners/${id}/status`);
+  return await authClient.patch(`/internal/banners/${id}/status`);
 };

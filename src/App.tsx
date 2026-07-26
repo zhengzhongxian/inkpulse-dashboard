@@ -26,6 +26,7 @@ import { BadgeForm } from './pages/BadgeForm';
 import { Publishers } from './pages/Publishers';
 import { PublisherForm } from './pages/PublisherForm';
 import { SystemSettings } from './pages/SystemSettings';
+import { BannersList } from './pages/BannersList';
 import './App.css';
 
 // Protected Layout wrapper to guard dashboard routes
@@ -88,7 +89,6 @@ function App() {
             <Route path="/vouchers" element={<Vouchers />} />
             <Route path="/vouchers/new" element={<VoucherForm />} />
             <Route path="/vouchers/edit/:id" element={<VoucherForm />} />
-import { BannersList } from './pages/BannersList';
 
             <Route path="/flash-sales" element={<FlashSales />} />
             <Route path="/banners" element={<BannersList />} />
