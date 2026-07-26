@@ -42,6 +42,8 @@ const FlashSaleForm: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [items, setItems] = useState<FlashSaleFormItem[]>([]);
+  const [savedItemsMap, setSavedItemsMap] = useState<Record<string, { discountAmount: number; flashSaleStock: number; soldCount: number }>>({});
+
 
   // Search & Selector Auxiliary States
   const [books, setBooks] = useState<any[]>([]);
@@ -93,19 +95,28 @@ const FlashSaleForm: React.FC = () => {
           setEndDate(apiDateToLocal(detail.endDate));
           setIsActive(detail.isActive);
           
-          // Map items list
-          const list = (detail.items || []).map((x: any) => ({
-            flashSaleItemId: x.flashSaleItemId,
-            bookEditionId: x.bookEditionId,
-            bookTitle: x.bookTitle || 'Phiên bản sách',
-            editionTitle: x.editionTitle || '',
-            originalPrice: x.originalPrice,
-            discountAmount: x.discountAmount,
-            flashSaleStock: x.flashSaleStock,
-            soldCount: x.soldCount
-          }));
+          // Map items list and saved state tracking map
+          const initialSavedMap: Record<string, { discountAmount: number; flashSaleStock: number; soldCount: number }> = {};
+          const list = (detail.items || []).map((x: any) => {
+            initialSavedMap[x.flashSaleItemId] = {
+              discountAmount: x.discountAmount,
+              flashSaleStock: x.flashSaleStock,
+              soldCount: x.soldCount ?? 0
+            };
+            return {
+              flashSaleItemId: x.flashSaleItemId,
+              bookEditionId: x.bookEditionId,
+              bookTitle: x.bookTitle || 'Phiên bản sách',
+              editionTitle: x.editionTitle || '',
+              originalPrice: x.originalPrice,
+              discountAmount: x.discountAmount,
+              flashSaleStock: x.flashSaleStock,
+              soldCount: x.soldCount
+            };
+          });
 
           setItems(list);
+          setSavedItemsMap(initialSavedMap);
         }
       } catch (err) {
         toast.error('Không thể tải thông tin chiến dịch Flash Sale!');
@@ -114,6 +125,7 @@ const FlashSaleForm: React.FC = () => {
         setLoading(false);
       }
     };
+
 
     fetchDetail();
   }, [id, isEditMode, navigate]);
@@ -193,11 +205,13 @@ const FlashSaleForm: React.FC = () => {
     }
   };
 
-  // Modify local fields values
-  const handleUpdateItemState = (index: number, field: 'discountAmount' | 'flashSaleStock' | 'soldCount', value: string) => {
+  // Modify local fields values with leading-zero sanitization (e.g. "010" -> 10)
+  const handleUpdateItemState = (index: number, field: 'discountAmount' | 'flashSaleStock' | 'soldCount', rawValue: string) => {
     setItems(prev => prev.map((item, i) => {
       if (i === index) {
-        const val = parseFloat(value) || 0;
+        const cleanStr = rawValue.replace(/^0+(?=\d)/, '');
+        const parsed = parseInt(cleanStr, 10);
+        const val = isNaN(parsed) ? 0 : parsed;
         return {
           ...item,
           [field]: field === 'discountAmount' ? Math.min(item.originalPrice, val) : val
@@ -207,7 +221,7 @@ const FlashSaleForm: React.FC = () => {
     }));
   };
 
-  // Trigger Save Updates on Blur
+  // Trigger Save Updates on Blur (Only if values actually changed!)
   const handleSaveItemUpdates = async (item: FlashSaleFormItem) => {
     if (item.discountAmount <= 0) {
       toast.error('Giảm giá phải lớn hơn 0!');
@@ -217,6 +231,19 @@ const FlashSaleForm: React.FC = () => {
       toast.error('Tồn kho phải lớn hơn 0!');
       return;
     }
+
+    // Check if values actually changed compared to saved state
+    const saved = savedItemsMap[item.flashSaleItemId];
+    if (
+      saved &&
+      saved.discountAmount === item.discountAmount &&
+      saved.flashSaleStock === item.flashSaleStock &&
+      (saved.soldCount ?? 0) === (item.soldCount ?? 0)
+    ) {
+      // Nothing changed! Skip API call cleanly!
+      return;
+    }
+
     try {
       await updateFlashSaleItemApi(id!, item.flashSaleItemId, {
         discountAmount: item.discountAmount,
@@ -224,11 +251,21 @@ const FlashSaleForm: React.FC = () => {
         soldCount: item.soldCount
       });
 
-      toast.success(`Đã lưu thay đổi sản phẩm`);
+      setSavedItemsMap(prev => ({
+        ...prev,
+        [item.flashSaleItemId]: {
+          discountAmount: item.discountAmount,
+          flashSaleStock: item.flashSaleStock,
+          soldCount: item.soldCount ?? 0
+        }
+      }));
+
+      toast.success('Đã lưu thay đổi sản phẩm');
     } catch (err) {
       toast.error('Cập nhật sản phẩm thất bại!');
     }
   };
+
 
   // Create Campaign metadata or Edit campaign metadata
   const handleSubmitCampaign = async (e: React.FormEvent) => {
@@ -252,12 +289,27 @@ const FlashSaleForm: React.FC = () => {
       const localDateToApi = (dateTimeStr: string, isEnd?: boolean) => {
         if (!dateTimeStr) return '';
         if (dateTimeStr.includes('+07:00') || dateTimeStr.includes('Z')) return dateTimeStr;
-        if (!dateTimeStr.includes('T')) {
-          const timeStr = isEnd ? 'T23:59:59.000+07:00' : 'T00:00:00.000+07:00';
-          return dateTimeStr + timeStr;
+        
+        let clean = dateTimeStr.trim();
+        if (!clean.includes('T')) {
+          clean += isEnd ? 'T23:59:59' : 'T00:00:00';
         }
-        return dateTimeStr + ':00.000+07:00';
+        
+        const parts = clean.split('T');
+        const datePart = parts[0];
+        let timePart = parts[1] || '00:00:00';
+        
+        timePart = timePart.split('.')[0].split('+')[0].split('-')[0];
+        
+        const timeSegments = timePart.split(':');
+        const h = (timeSegments[0] || '00').padStart(2, '0');
+        const m = (timeSegments[1] || '00').padStart(2, '0');
+        const s = (timeSegments[2] || (isEnd ? '59' : '00')).padStart(2, '0');
+        
+        return `${datePart}T${h}:${m}:${s}.000+07:00`;
       };
+
+
 
       if (isEditMode) {
         const res = await updateFlashSaleApi(id!, {
@@ -350,16 +402,82 @@ const FlashSaleForm: React.FC = () => {
           background-color: #0d0d0f;
           border: 1px solid #2d2d30;
           border-radius: 8px;
-          color: #ffffff;
+          color: #ffffff !important;
           height: 44px;
           padding: 0 12px;
           font-size: 14.5px;
-          outline: none;
+          font-weight: 600;
+          outline: none !important;
+          box-shadow: none !important;
           transition: var(--transition);
         }
         .form-control:focus {
-          border-color: #4a4a4f !important;
+          border-color: #55555c !important;
+          box-shadow: none !important;
+          outline: none !important;
         }
+        /* Multi-color Data Table Input Fields */
+        .items-table input.input-discount {
+          height: 36px;
+          background-color: #0d0d0f;
+          border: 1px solid rgba(72, 187, 120, 0.4);
+          color: #48BB78 !important;
+          font-weight: 700;
+          font-size: 14px;
+          outline: none !important;
+          box-shadow: none !important;
+          border-radius: 6px;
+          padding: 0 10px;
+          transition: all 0.2s ease;
+        }
+        .items-table input.input-discount:focus {
+          border-color: #48BB78 !important;
+          background-color: rgba(72, 187, 120, 0.08);
+          box-shadow: 0 0 0 2px rgba(72, 187, 120, 0.2) !important;
+          outline: none !important;
+        }
+
+        .items-table input.input-stock {
+          height: 36px;
+          background-color: #0d0d0f;
+          border: 1px solid rgba(66, 153, 225, 0.4);
+          color: #4299E1 !important;
+          font-weight: 700;
+          font-size: 14px;
+          outline: none !important;
+          box-shadow: none !important;
+          border-radius: 6px;
+          padding: 0 10px;
+          transition: all 0.2s ease;
+        }
+        .items-table input.input-stock:focus {
+          border-color: #4299E1 !important;
+          background-color: rgba(66, 153, 225, 0.08);
+          box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2) !important;
+          outline: none !important;
+        }
+
+        .items-table input.input-sold {
+          height: 36px;
+          background-color: #0d0d0f;
+          border: 1px solid rgba(237, 137, 54, 0.4);
+          color: #ED8936 !important;
+          font-weight: 700;
+          font-size: 14px;
+          outline: none !important;
+          box-shadow: none !important;
+          border-radius: 6px;
+          padding: 0 10px;
+          transition: all 0.2s ease;
+        }
+        .items-table input.input-sold:focus {
+          border-color: #ED8936 !important;
+          background-color: rgba(237, 137, 54, 0.08);
+          box-shadow: 0 0 0 2px rgba(237, 137, 54, 0.2) !important;
+          outline: none !important;
+        }
+
+
         
         /* Custom Toggle Switch - matching book edition yellow style */
         .switch-custom {
@@ -640,8 +758,8 @@ const FlashSaleForm: React.FC = () => {
                   onClick={() => setIsDeleteModalOpen(true)}
                   style={{
                     backgroundColor: 'transparent',
-                    color: 'var(--accent-red)',
-                    border: '1px solid var(--accent-red)',
+                    color: 'var(--text-light)',
+                    border: '1px solid #2d2d30',
                     borderRadius: '8px',
                     height: '38px',
                     padding: '0 16px',
@@ -654,11 +772,18 @@ const FlashSaleForm: React.FC = () => {
                     fontSize: '13px'
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(229, 62, 62, 0.1)';
+                    const btn = e.currentTarget as HTMLButtonElement;
+                    btn.style.backgroundColor = 'rgba(229, 62, 62, 0.15)';
+                    btn.style.borderColor = 'var(--accent-red)';
+                    btn.style.color = 'var(--accent-red)';
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                    const btn = e.currentTarget as HTMLButtonElement;
+                    btn.style.backgroundColor = 'transparent';
+                    btn.style.borderColor = '#2d2d30';
+                    btn.style.color = 'var(--text-light)';
                   }}
+
                 >
                   <TbTrash /> Xóa chiến dịch
                 </button>
@@ -844,7 +969,7 @@ const FlashSaleForm: React.FC = () => {
                           <td>
                             <input
                               type="number"
-                              className="form-control"
+                              className="form-control input-discount"
                               value={item.discountAmount}
                               onChange={(e) => handleUpdateItemState(index, 'discountAmount', e.target.value)}
                               onBlur={() => handleSaveItemUpdates(item)}
@@ -854,7 +979,7 @@ const FlashSaleForm: React.FC = () => {
                           <td>
                             <input
                               type="number"
-                              className="form-control"
+                              className="form-control input-stock"
                               value={item.flashSaleStock}
                               onChange={(e) => handleUpdateItemState(index, 'flashSaleStock', e.target.value)}
                               onBlur={() => handleSaveItemUpdates(item)}
@@ -864,13 +989,14 @@ const FlashSaleForm: React.FC = () => {
                           <td>
                             <input
                               type="number"
-                              className="form-control"
+                              className="form-control input-sold"
                               value={item.soldCount ?? 0}
                               onChange={(e) => handleUpdateItemState(index, 'soldCount', e.target.value)}
                               onBlur={() => handleSaveItemUpdates(item)}
                               style={{ height: '36px', width: '100px' }}
                             />
                           </td>
+
 
                           <td style={{ textAlign: 'center' }}>
                             <button

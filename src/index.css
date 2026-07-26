@@ -81,15 +81,19 @@ input, select, textarea {
   font-family: var(--font);
   background-color: var(--bg-secondary);
   border: 1px solid var(--border);
-  color: var(--text-main);
-  outline: none;
+  color: #ffffff !important;
+  outline: none !important;
+  box-shadow: none !important;
   transition: var(--transition);
   border-radius: var(--radius-sm);
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: #4a4a4f;
+  border-color: #4a4a4f !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
+
 
 .view-title {
   font-family: 'Playfair Display', Georgia, serif;

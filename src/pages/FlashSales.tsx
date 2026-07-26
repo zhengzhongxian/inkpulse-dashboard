@@ -169,12 +169,26 @@ const FlashSales: React.FC = () => {
   const localDateToApi = (dateTimeStr: string, isEnd?: boolean) => {
     if (!dateTimeStr) return '';
     if (dateTimeStr.includes('+07:00') || dateTimeStr.includes('Z')) return dateTimeStr;
-    if (!dateTimeStr.includes('T')) {
-      const timeStr = isEnd ? 'T23:59:59.000+07:00' : 'T00:00:00.000+07:00';
-      return dateTimeStr + timeStr;
+    
+    let clean = dateTimeStr.trim();
+    if (!clean.includes('T')) {
+      clean += isEnd ? 'T23:59:59' : 'T00:00:00';
     }
-    return dateTimeStr + ':00.000+07:00';
+    
+    const parts = clean.split('T');
+    const datePart = parts[0];
+    let timePart = parts[1] || '00:00:00';
+    
+    timePart = timePart.split('.')[0].split('+')[0].split('-')[0];
+    
+    const timeSegments = timePart.split(':');
+    const h = (timeSegments[0] || '00').padStart(2, '0');
+    const m = (timeSegments[1] || '00').padStart(2, '0');
+    const s = (timeSegments[2] || (isEnd ? '59' : '00')).padStart(2, '0');
+    
+    return `${datePart}T${h}:${m}:${s}.000+07:00`;
   };
+
 
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();

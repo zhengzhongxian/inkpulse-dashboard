@@ -88,7 +88,10 @@ function App() {
             <Route path="/vouchers" element={<Vouchers />} />
             <Route path="/vouchers/new" element={<VoucherForm />} />
             <Route path="/vouchers/edit/:id" element={<VoucherForm />} />
+import { BannersList } from './pages/BannersList';
+
             <Route path="/flash-sales" element={<FlashSales />} />
+            <Route path="/banners" element={<BannersList />} />
             <Route path="/flash-sales/new" element={<FlashSaleForm />} />
             <Route path="/flash-sales/edit/:id" element={<FlashSaleForm />} />
             <Route path="/reviews" element={<Reviews />} />
