@@ -901,6 +901,21 @@ const FlashSales: React.FC = () => {
           justifyContent: 'center', zIndex: 1100
         }}>
           <div className="modal-content card" style={{ width: '600px', padding: '24px', position: 'relative', borderRadius: '0' }}>
+            <button
+              onClick={() => setIsCreateModalOpen(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                fontSize: '22px',
+                cursor: 'pointer'
+              }}
+            >
+              <TbX />
+            </button>
 
             <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: '0 0 16px 0', color: '#da447d' }}>
               Tạo mới chiến dịch Flash Sale
@@ -946,17 +961,6 @@ const FlashSales: React.FC = () => {
 
               {/* Right-aligned action buttons */}
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  style={{
-                    padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border)',
-                    backgroundColor: 'transparent', color: '#ffffff', cursor: 'pointer', fontSize: '14px'
-                  }}
-                >
-                  Hủy
-                </button>
                 <button
                   type="submit"
                   disabled={submittingCampaign}

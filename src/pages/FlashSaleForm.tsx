@@ -433,7 +433,7 @@ const FlashSaleForm: React.FC = () => {
         .items-table input.input-discount:focus {
           border-color: #48BB78 !important;
           background-color: rgba(72, 187, 120, 0.08);
-          box-shadow: 0 0 0 2px rgba(72, 187, 120, 0.2) !important;
+          box-shadow: none !important;
           outline: none !important;
         }
 
@@ -453,7 +453,7 @@ const FlashSaleForm: React.FC = () => {
         .items-table input.input-stock:focus {
           border-color: #4299E1 !important;
           background-color: rgba(66, 153, 225, 0.08);
-          box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2) !important;
+          box-shadow: none !important;
           outline: none !important;
         }
 
@@ -473,7 +473,7 @@ const FlashSaleForm: React.FC = () => {
         .items-table input.input-sold:focus {
           border-color: #ED8936 !important;
           background-color: rgba(237, 137, 54, 0.08);
-          box-shadow: 0 0 0 2px rgba(237, 137, 54, 0.2) !important;
+          box-shadow: none !important;
           outline: none !important;
         }
 

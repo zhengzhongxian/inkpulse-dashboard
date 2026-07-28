@@ -412,10 +412,17 @@ export const BannersList: React.FC = () => {
           cursor: not-allowed;
         }
         .pink-spinner-container {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(20, 20, 20, 0.5);
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 48px 0;
+          z-index: 10;
+          backdrop-filter: blur(2px);
         }
         .pink-spinner {
           width: 36px;
@@ -423,9 +430,9 @@ export const BannersList: React.FC = () => {
           border: 3px solid rgba(246, 135, 179, 0.2);
           border-top-color: #F687B3;
           border-radius: 50%;
-          animation: spin 0.8s linear infinite;
+          animation: pink-spin 0.8s linear infinite;
         }
-        @keyframes spin {
+        @keyframes pink-spin {
           to { transform: rotate(360deg); }
         }
       `}</style>
@@ -434,7 +441,7 @@ export const BannersList: React.FC = () => {
       <div className="view-header">
         <div>
           <h1 className="view-title">Quản lý Banner</h1>
-          <p className="view-subtitle">Tạo và cấu hình các banner quảng cáo MinIO đính kèm sách hiển thị sinh động trên trang chủ.</p>
+          <p className="view-subtitle">Tạo và cấu hình các banner quảng cáo đính kèm sách hiển thị sinh động trên trang chủ.</p>
         </div>
         <button className="btn-add-custom" onClick={handleCreateNew}>
           <TbPlus />
@@ -513,7 +520,7 @@ export const BannersList: React.FC = () => {
           </div>
         )}
 
-        <table className="data-table">
+        <table className="data-table" style={{ opacity: loading ? 0.5 : 1, transition: 'opacity 0.2s ease-in-out' }}>
           <thead>
             <tr>
               <th style={{ width: '160px' }}>Ảnh Banner</th>
@@ -635,7 +642,7 @@ export const BannersList: React.FC = () => {
       </div>
 
       {/* Pagination Bar */}
-      {!loading && totalCount > 0 && (
+      {totalCount > 0 && (
         <div className="pagination-bar">
           <span className="pagination-info">
             Hiển thị{' '}
@@ -703,13 +710,30 @@ export const BannersList: React.FC = () => {
             style={{
               backgroundColor: '#161616',
               border: '1px solid var(--border)',
-              borderRadius: '16px',
+              borderRadius: '0px',
               width: '100%',
               maxWidth: '440px',
               padding: '24px',
-              boxShadow: 'var(--shadow-lg)'
+              boxShadow: 'var(--shadow-lg)',
+              position: 'relative'
             }}
           >
+            <button
+              onClick={() => setDeleteId(null)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                fontSize: '20px',
+                cursor: 'pointer'
+              }}
+            >
+              <TbX />
+            </button>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
               <div
                 style={{
@@ -736,33 +760,15 @@ export const BannersList: React.FC = () => {
               Bạn có chắc chắn muốn xóa banner quảng cáo này khỏi hệ thống không? Tất cả các thiết lập gán sản phẩm đính kèm cũng sẽ bị xóa.
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button
-                type="button"
-                onClick={() => setDeleteId(null)}
-                disabled={deleting}
-                style={{
-                  height: '40px',
-                  padding: '0 18px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border)',
-                  backgroundColor: '#1a1a1a',
-                  color: 'var(--text-light)',
-                  fontWeight: 600,
-                  fontSize: '13.5px',
-                  cursor: 'pointer'
-                }}
-              >
-                Hủy bỏ
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 type="button"
                 onClick={handleDeleteConfirm}
                 disabled={deleting}
                 style={{
                   height: '40px',
-                  padding: '0 20px',
-                  borderRadius: '10px',
+                  padding: '0 24px',
+                  borderRadius: '8px',
                   border: 'none',
                   background: 'linear-gradient(135deg, #e53e3e, #c53030)',
                   color: '#fff',

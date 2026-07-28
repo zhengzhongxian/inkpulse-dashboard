@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TbX, TbUpload, TbPlus, TbTrash, TbCheck, TbSearch, TbLoader2 } from 'react-icons/tb';
+import { TbX, TbUpload, TbPlus, TbTrash, TbCheck, TbSearch, TbLoader2, TbGift } from 'react-icons/tb';
 import { createBannerApi, updateBannerApi } from '../api/banners';
-import { getPagedBookEditionsApi } from '../api/books';
+import { getInternalBooksApi, getInternalBookDetailApi } from '../api/books';
 import { toast } from '../utils/toast';
 
 interface BookEditionSelectItem {
@@ -26,7 +26,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
   onSuccess,
   bannerToEdit
 }) => {
-  const isEdit = !!bannerToEdit;
+  const isEdit = Boolean(bannerToEdit);
 
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
@@ -40,11 +40,14 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string>('');
 
-  // Book Edition Selector states
+  // 2-Step Target Selector states (Identical to FlashSaleForm / VoucherForm)
   const [selectedEditions, setSelectedEditions] = useState<BookEditionSelectItem[]>([]);
-  const [isEditionPickerOpen, setIsEditionPickerOpen] = useState(false);
-  const [availableEditions, setAvailableEditions] = useState<any[]>([]);
-  const [editionSearch, setEditionSearch] = useState('');
+  const [books, setBooks] = useState<any[]>([]);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+  const [bookSearchTerm, setBookSearchTerm] = useState('');
+  const [selectedBookIdForEdition, setSelectedBookIdForEdition] = useState('');
+  const [selectedBookNameForEdition, setSelectedBookNameForEdition] = useState('');
+  const [bookEditions, setBookEditions] = useState<any[]>([]);
   const [loadingEditions, setLoadingEditions] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -75,6 +78,9 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
     } else {
       resetForm();
     }
+    if (isOpen) {
+      loadBooksList();
+    }
   }, [bannerToEdit, isOpen]);
 
   const resetForm = () => {
@@ -88,6 +94,10 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
     setIconFile(null);
     setIconPreview('');
     setSelectedEditions([]);
+    setSelectedBookIdForEdition('');
+    setSelectedBookNameForEdition('');
+    setBookEditions([]);
+    setBookSearchTerm('');
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,42 +116,67 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
     }
   };
 
-  const fetchAvailableEditions = async (keyword: string) => {
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImageFile(null);
+    setImagePreview('');
+  };
+
+  const handleRemoveIcon = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIconFile(null);
+    setIconPreview('');
+  };
+
+  const loadBooksList = async () => {
     try {
-      setLoadingEditions(true);
-      const res = await getPagedBookEditionsApi({ pageNumber: 1, pageSize: 20, searchKeyword: keyword });
+      setLoadingBooks(true);
+      const res = await getInternalBooksApi({ pageNumber: 1, pageSize: 200 });
       if (res.data && res.data.success && res.data.data) {
-        setAvailableEditions(res.data.data.items || []);
+        setBooks(res.data.data.items || []);
       }
     } catch (err) {
-      console.error('Failed to load editions', err);
+      console.error('Failed to load books list', err);
+    } finally {
+      setLoadingBooks(false);
+    }
+  };
+
+  const loadBookEditions = async (bookId: string) => {
+    try {
+      setLoadingEditions(true);
+      const res = await getInternalBookDetailApi(bookId);
+      if (res.data && res.data.success) {
+        setBookEditions(res.data.data.editions || []);
+      }
+    } catch (err) {
+      console.error('Failed to load book editions', err);
     } finally {
       setLoadingEditions(false);
     }
   };
 
-  const openEditionPicker = () => {
-    setIsEditionPickerOpen(true);
-    fetchAvailableEditions('');
-  };
-
-  const toggleEditionSelection = (item: any) => {
-    const exists = selectedEditions.some(e => e.editionId === (item.editionId || item.id));
-    if (exists) {
-      setSelectedEditions(prev => prev.filter(e => e.editionId !== (item.editionId || item.id)));
+  const handleToggleEdition = (ed: any) => {
+    const isSel = selectedEditions.some(item => item.editionId === ed.id);
+    if (isSel) {
+      setSelectedEditions(prev => prev.filter(item => item.editionId !== ed.id));
     } else {
       setSelectedEditions(prev => [
         ...prev,
         {
-          editionId: item.editionId || item.id,
-          bookTitle: item.bookTitle || item.title || 'Ấn phẩm sách',
-          isbn: item.isbn || '',
-          price: Number(item.price) || 0,
-          coverUrl: item.coverUrl
+          editionId: ed.id,
+          bookTitle: selectedBookNameForEdition,
+          isbn: ed.isbn || '',
+          price: Number(ed.price) || 0,
+          coverUrl: ed.coverUrl || ed.thumbnailUrl
         }
       ]);
     }
   };
+
+  const filteredBooks = books.filter(b =>
+    (b.title || '').toLowerCase().includes(bookSearchTerm.toLowerCase())
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,7 +248,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
             <label>Tiêu Đề Banner <span className="text-danger">*</span></label>
             <input
               type="text"
-              className="input-custom"
+              className="input-custom title-input-custom"
               placeholder="VD: Siêu Sale Sách Lập Trình CQRS & Microservices"
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -254,22 +289,24 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
             </div>
           </div>
 
-          {/* MinIO Image & Icon Upload Area */}
+          {/* Image & Icon Upload Area */}
           <div className="form-row-custom">
             <div className="form-group-custom flex-1">
-              <label>Ảnh Banner (MinIO Upload) <span className="text-danger">*</span></label>
+              <label>Ảnh Banner <span className="text-danger">*</span></label>
               <div className="upload-box-custom">
                 {imagePreview ? (
                   <div className="preview-wrap">
                     <img src={imagePreview} alt="Banner Preview" className="preview-img" />
-                    <label htmlFor="image-file-input" className="btn-change-img">
-                      <TbUpload /> Đổi Ảnh
+                    <label htmlFor="image-file-input" className="preview-hover-overlay">
+                      <TbUpload style={{ fontSize: '20px' }} />
+                      <span>Thay đổi ảnh</span>
                     </label>
+                    <button type="button" className="btn-remove-img" onClick={handleRemoveImage} title="Xóa ảnh">&times;</button>
                   </div>
                 ) : (
                   <label htmlFor="image-file-input" className="upload-placeholder">
                     <TbUpload className="upload-icon" />
-                    <span>Tải tệp ảnh banner lên MinIO</span>
+                    <span>Tải tệp ảnh banner lên</span>
                   </label>
                 )}
                 <input
@@ -283,14 +320,16 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
             </div>
 
             <div className="form-group-custom width-200">
-              <label>Biểu Tượng / Icon (MinIO)</label>
+              <label>Biểu Tượng / Icon</label>
               <div className="upload-box-custom">
                 {iconPreview ? (
                   <div className="preview-wrap icon-wrap">
                     <img src={iconPreview} alt="Icon Preview" className="preview-icon" />
-                    <label htmlFor="icon-file-input" className="btn-change-img">
-                      <TbUpload /> Đổi
+                    <label htmlFor="icon-file-input" className="preview-hover-overlay">
+                      <TbUpload style={{ fontSize: '18px' }} />
+                      <span>Đổi Icon</span>
                     </label>
+                    <button type="button" className="btn-remove-img" onClick={handleRemoveIcon} title="Xóa icon">&times;</button>
                   </div>
                 ) : (
                   <label htmlFor="icon-file-input" className="upload-placeholder">
@@ -309,21 +348,19 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
             </div>
           </div>
 
-          {/* Linked Book Editions Section */}
+          {/* Linked Book Editions Section (Identical to FlashSale / Voucher) */}
           <div className="form-group-custom">
-            <div className="edition-section-header">
-              <label>Sản Phẩm Sách Đính Kèm ({selectedEditions.length})</label>
-              <button type="button" className="btn-add-edition" onClick={openEditionPicker}>
-                <TbPlus /> Chọn Sách Đính Kèm
-              </button>
-            </div>
+            <label style={{ fontSize: '14px', fontWeight: '600', color: '#F687B3', marginBottom: '8px', display: 'block' }}>
+              Sản Phẩm Sách Đính Kèm Banner ({selectedEditions.length})
+            </label>
 
-            {selectedEditions.length > 0 ? (
-              <div className="selected-editions-list">
-                {selectedEditions.map((item, idx) => (
+            {/* Selected chips list */}
+            {selectedEditions.length > 0 && (
+              <div className="selected-editions-list" style={{ marginBottom: '12px' }}>
+                {selectedEditions.map((item) => (
                   <div key={item.editionId} className="selected-edition-chip">
                     {item.coverUrl && <img src={item.coverUrl} alt="" className="chip-cover" />}
-                    <span className="chip-title">{item.bookTitle}</span>
+                    <span className="chip-title">{item.bookTitle} (ISBN: {item.isbn || 'N/A'})</span>
                     <button
                       type="button"
                       className="btn-remove-chip"
@@ -334,28 +371,161 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="no-editions-text">Chưa chọn sản phẩm sách nào cho Banner này.</div>
             )}
+
+            {/* 2-Step Target Selector (FlashSale & Voucher Style) */}
+            <div style={{ padding: '16px', backgroundColor: '#0d0d0f', border: '1px solid #2d2d30', borderRadius: '0' }}>
+              {!selectedBookIdForEdition ? (
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                    Bước 1: Tìm kiếm & chọn sách chứa phiên bản
+                  </div>
+                  <div className="search-wrap-custom">
+                    <input
+                      type="text"
+                      className="search-input-custom"
+                      placeholder="Tìm sách..."
+                      value={bookSearchTerm}
+                      onChange={(e) => setBookSearchTerm(e.target.value)}
+                    />
+                    <button className="search-btn-custom" type="button"><TbSearch /></button>
+                  </div>
+                  <div className="table-select-container-custom">
+                    {loadingBooks ? (
+                      <div style={{ display: 'flex', justifyContent: 'center', padding: '16px' }}>
+                        <div className="pink-spinner" />
+                      </div>
+                    ) : (
+                      <table className="table-select-custom">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '40px' }}>Chọn</th>
+                            <th>Tên sách</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredBooks.map(bk => (
+                            <tr
+                              key={bk.id}
+                              onClick={() => {
+                                setSelectedBookIdForEdition(bk.id);
+                                setSelectedBookNameForEdition(bk.title);
+                                loadBookEditions(bk.id);
+                              }}
+                            >
+                              <td>
+                                <TbGift style={{ color: 'var(--primary)', fontSize: '15px' }} />
+                              </td>
+                              <td>{bk.title}</td>
+                            </tr>
+                          ))}
+                          {filteredBooks.length === 0 && (
+                            <tr>
+                              <td colSpan={2} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+                                Không tìm thấy sách phù hợp.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '12px', color: '#4299e1' }}>Sách: <strong>{selectedBookNameForEdition}</strong></span>
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: '#f687b3', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+                      onClick={() => {
+                        setSelectedBookIdForEdition('');
+                        setSelectedBookNameForEdition('');
+                        setBookEditions([]);
+                      }}
+                    >
+                      Chọn sách khác
+                    </button>
+                  </div>
+                  <div className="table-select-container-custom">
+                    {loadingEditions ? (
+                      <div style={{ display: 'flex', justifyContent: 'center', padding: '16px' }}>
+                        <div className="pink-spinner" />
+                      </div>
+                    ) : (
+                      <table className="table-select-custom">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '40px' }}>Chọn</th>
+                            <th>ISBN</th>
+                            <th>PB số</th>
+                            <th>Loại bìa</th>
+                            <th>Giá gốc (đ)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bookEditions.map(ed => {
+                            const isSel = selectedEditions.some(i => i.editionId === ed.id);
+                            return (
+                              <tr
+                                key={ed.id}
+                                className={isSel ? 'selected' : ''}
+                                onClick={() => handleToggleEdition(ed)}
+                              >
+                                <td>
+                                  <div className={`circle-checkbox-custom ${isSel ? 'selected' : ''}`} />
+                                </td>
+                                <td>{ed.isbn}</td>
+                                <td>{ed.editionNumber}</td>
+                                <td>{ed.coverType}</td>
+                                <td style={{ fontWeight: 'bold', color: '#48BB78' }}>
+                                  {Number(ed.price || 0).toLocaleString('vi-VN')} đ
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {bookEditions.length === 0 && (
+                            <tr>
+                              <td colSpan={5} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+                                Sách này chưa có phiên bản nào.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Status Checkbox */}
-          <div className="form-group-custom checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={e => setIsActive(e.target.checked)}
-              />
-              <span>Kích hoạt hiển thị Banner ngay sau khi lưu</span>
-            </label>
+          {/* Status Toggle Switch */}
+          <div className="form-group-custom" style={{ paddingTop: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                className={`switch-custom ${isActive ? 'active' : ''}`}
+                onClick={() => setIsActive(!isActive)}
+              >
+                <div className="switch-slider-custom" />
+              </div>
+              <span
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: isActive ? '#ed8936' : 'var(--text-light)',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
+                onClick={() => setIsActive(!isActive)}
+              >
+                Kích hoạt hiển thị Banner ngay sau khi lưu
+              </span>
+            </div>
           </div>
 
           {/* Footer Buttons */}
-          <div className="banner-modal-footer">
-            <button type="button" className="btn-cancel-custom" onClick={onClose} disabled={submitting}>
-              Hủy
-            </button>
+          <div className="banner-modal-footer" style={{ justifyContent: 'flex-end', marginTop: '16px' }}>
             <button type="submit" className="btn-submit-custom" disabled={submitting}>
               {submitting ? <TbLoader2 className="animate-spin" /> : <TbCheck />}
               <span>{isEdit ? 'Lưu Cập Nhật' : 'Tạo Banner'}</span>
@@ -363,70 +533,6 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
           </div>
         </form>
       </div>
-
-      {/* Book Edition Selection Picker Modal */}
-      {isEditionPickerOpen && (
-        <div className="inner-picker-overlay">
-          <div className="inner-picker-modal">
-            <div className="inner-picker-header">
-              <h4>Chọn Sản Phẩm Sách Đính Kèm Banner</h4>
-              <button className="btn-close-modal" onClick={() => setIsEditionPickerOpen(false)}>
-                <TbX />
-              </button>
-            </div>
-            <div className="inner-picker-search">
-              <div className="search-wrap">
-                <TbSearch className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm theo tên sách hoặc mã ISBN..."
-                  value={editionSearch}
-                  onChange={e => {
-                    setEditionSearch(e.target.value);
-                    fetchAvailableEditions(e.target.value);
-                  }}
-                />
-              </div>
-            </div>
-            <div className="inner-picker-body">
-              {loadingEditions ? (
-                <div className="loading-state"><TbLoader2 className="animate-spin" /> Đang tải...</div>
-              ) : availableEditions.length > 0 ? (
-                <div className="editions-picker-grid">
-                  {availableEditions.map(item => {
-                    const id = item.editionId || item.id;
-                    const isSelected = selectedEditions.some(e => e.editionId === id);
-                    return (
-                      <div
-                        key={id}
-                        className={`picker-card ${isSelected ? 'selected' : ''}`}
-                        onClick={() => toggleEditionSelection(item)}
-                      >
-                        <div className="picker-card-check">
-                          <input type="checkbox" checked={isSelected} readOnly />
-                        </div>
-                        {item.coverUrl && <img src={item.coverUrl} alt="" className="picker-cover" />}
-                        <div className="picker-card-info">
-                          <div className="picker-book-title">{item.bookTitle || item.title}</div>
-                          <div className="picker-book-isbn">ISBN: {item.isbn || 'N/A'}</div>
-                          <div className="picker-book-price">{Number(item.price || 0).toLocaleString('vi-VN')} đ</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="empty-state">Không tìm thấy sản phẩm phù hợp.</div>
-              )}
-            </div>
-            <div className="inner-picker-footer">
-              <button className="btn-submit-custom" onClick={() => setIsEditionPickerOpen(false)}>
-                Xác Nhận Đã Chọn ({selectedEditions.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         .banner-modal-overlay {
@@ -444,7 +550,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
         .banner-modal-container {
           background: #141414;
           border: 1px solid #2a2a2a;
-          border-radius: 12px;
+          border-radius: 0px;
           width: 100%;
           max-width: 760px;
           max-height: 90vh;
@@ -497,9 +603,15 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
         }
 
         .form-group-custom label {
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 600;
-          color: #cbd5e1;
+          color: #F687B3;
+        }
+
+        .text-danger {
+          color: #ef4444 !important;
+          margin-left: 3px;
+          font-weight: 700;
         }
 
         .input-custom {
@@ -511,6 +623,11 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
           font-size: 14px;
           outline: none;
           transition: border-color 0.2s ease;
+        }
+
+        .title-input-custom {
+          color: #4fd1c5 !important;
+          font-weight: 700;
         }
 
         .input-custom:focus {
@@ -543,20 +660,34 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
           flex-direction: column;
           align-items: center;
           gap: 8px;
-          color: #64748b;
+          color: #94a3b8 !important;
           font-size: 13px;
           cursor: pointer;
+          transition: color 0.2s ease;
+        }
+
+        .upload-placeholder:hover {
+          color: #f8fafc !important;
         }
 
         .upload-icon {
           font-size: 28px;
-          color: #da447d;
+          color: #94a3b8 !important;
+          transition: color 0.2s ease;
+        }
+
+        .upload-placeholder:hover .upload-icon {
+          color: #f8fafc !important;
         }
 
         .preview-wrap {
           width: 100%;
           height: 100%;
           position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
         }
 
         .preview-img {
@@ -572,19 +703,50 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
           padding: 10px;
         }
 
-        .btn-change-img {
+        .preview-hover-overlay {
           position: absolute;
-          bottom: 8px;
-          right: 8px;
-          background: rgba(0, 0, 0, 0.75);
+          inset: 0;
+          background: rgba(0, 0, 0, 0.65);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          color: #ffffff !important;
+          font-size: 12.5px;
+          font-weight: 600;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          cursor: pointer;
+          z-index: 2;
+        }
+
+        .preview-wrap:hover .preview-hover-overlay {
+          opacity: 1;
+        }
+
+        .btn-remove-img {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.85);
           color: #ffffff;
-          font-size: 11px;
-          padding: 4px 8px;
-          border-radius: 4px;
+          border: none;
+          font-size: 14px;
           cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 4px;
+          justify-content: center;
+          z-index: 5;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+
+        .preview-wrap:hover .btn-remove-img {
+          opacity: 1;
         }
 
         .edition-section-header {
@@ -613,7 +775,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
           gap: 8px;
           background: #1a1a1a;
           padding: 12px;
-          border-radius: 8px;
+          border-radius: 0;
           border: 1px solid #2a2a2a;
         }
 
@@ -631,7 +793,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
           width: 20px;
           height: 26px;
           object-fit: cover;
-          border-radius: 2px;
+          border-radius: 3px;
         }
 
         .btn-remove-chip {
@@ -711,7 +873,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
         .inner-picker-modal {
           background: #141414;
           border: 1px solid #2a2a2a;
-          border-radius: 12px;
+          border-radius: 0px;
           width: 100%;
           max-width: 620px;
           max-height: 80vh;
@@ -830,6 +992,125 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+
+        /* Pink Search Bar (Identical to BannersList.tsx) */
+        .search-wrap-custom {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          height: 42px;
+          border: 2px solid var(--primary, #da447d);
+          border-radius: 10px;
+          overflow: hidden;
+          background-color: #1a1a1a;
+          margin-bottom: 12px;
+          transition: all 0.2s ease;
+        }
+        .search-wrap-custom:focus-within {
+          border-color: var(--primary-hover, #e63980);
+          box-shadow: 0 0 0 3px rgba(218, 68, 125, 0.2);
+        }
+        .search-input-custom {
+          flex: 1;
+          height: 100%;
+          border: none !important;
+          outline: none !important;
+          padding: 0 16px !important;
+          font-size: 13.5px;
+          color: #f8fafc;
+          background-color: transparent !important;
+        }
+        .search-input-custom::placeholder {
+          color: #64748b;
+        }
+        .search-btn-custom {
+          width: 48px;
+          height: 100%;
+          background-color: var(--primary, #da447d);
+          color: #FFFFFF;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          cursor: pointer;
+          font-size: 18px;
+          transition: background-color 0.2s ease;
+        }
+        .search-btn-custom:hover {
+          background-color: var(--primary-hover, #e63980);
+        }
+        .table-select-container-custom {
+          max-height: 220px;
+          overflow-y: auto;
+          border: 1px solid #2d2d30;
+          border-radius: 0;
+          background-color: #0d0d0f;
+        }
+        .table-select-custom {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+          font-size: 13px;
+        }
+        .table-select-custom th {
+          background-color: #161616;
+          color: var(--text-light, #94a3b8);
+          font-weight: 600;
+          padding: 10px 14px;
+        }
+        .table-select-custom tr {
+          border-bottom: 1px solid #1f1f23;
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        }
+        .table-select-custom tr:hover {
+          background-color: rgba(255, 255, 255, 0.04);
+        }
+        .table-select-custom tr.selected {
+          background-color: rgba(217, 68, 125, 0.08);
+        }
+        .table-select-custom td {
+          padding: 10px 14px;
+          vertical-align: middle;
+          color: #f8fafc;
+        }
+        .circle-checkbox-custom {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 1.5px solid #4a4a4f;
+          display: inline-block;
+          position: relative;
+          transition: all 0.15s ease;
+          vertical-align: middle;
+        }
+        .circle-checkbox-custom.selected {
+          border-color: #4299E1;
+          background-color: transparent;
+        }
+        .circle-checkbox-custom.selected::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background-color: #4299E1;
+        }
+        .pink-spinner {
+          width: 24px;
+          height: 24px;
+          border: 3px solid rgba(236, 72, 153, 0.15);
+          border-top-color: #ec4899;
+          border-radius: 50%;
+          animation: pink-spin 0.8s linear infinite;
+        }
+        @keyframes pink-spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </div>,

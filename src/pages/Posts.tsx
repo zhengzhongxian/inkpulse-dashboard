@@ -148,8 +148,7 @@ export const Posts: React.FC = () => {
                 </select>
               </div>
 
-              <div className="modal-actions-row">
-                <button type="button" className="btn-secondary" onClick={() => setIsFormOpen(false)}>Hủy</button>
+              <div className="modal-actions-row" style={{ justifyContent: 'flex-end' }}>
                 <button type="submit" className="btn-primary">Tạo bài</button>
               </div>
             </form>

@@ -251,7 +251,7 @@ export const getStockHistoryApi = (editionId: string, params?: { page?: number; 
 };
 
 export const getPagedBookEditionsApi = (params?: { pageNumber?: number; pageSize?: number; searchKeyword?: string }) => {
-  return authClient.get<any>('/books/editions', { params });
+  return authClient.get<any>('/books', { params });
 };
 
 
