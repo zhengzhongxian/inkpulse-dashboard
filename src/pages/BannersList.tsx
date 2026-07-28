@@ -267,9 +267,9 @@ export const BannersList: React.FC = () => {
         .badge {
           display: inline-flex;
           align-items: center;
-          padding: 4px 10px;
-          border-radius: 20px;
-          font-size: 12px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 11px;
           font-weight: 600;
         }
         .badge.running {
@@ -567,10 +567,15 @@ export const BannersList: React.FC = () => {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            textDecoration: 'none'
+                            textDecoration: 'none',
+                            maxWidth: '320px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
                           }}
+                          title={b.linkUrl}
                         >
-                          <TbExternalLink /> {b.linkUrl}
+                          <TbExternalLink style={{ flexShrink: 0 }} /> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.linkUrl}</span>
                         </a>
                       )}
                     </div>

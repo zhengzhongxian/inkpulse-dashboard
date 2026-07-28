@@ -179,12 +179,14 @@ button {
   font-weight: 600;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
+  vertical-align: middle;
 }
 
 .data-table td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   color: var(--text-main);
+  vertical-align: middle;
 }
 
 .data-table tr:hover td {
